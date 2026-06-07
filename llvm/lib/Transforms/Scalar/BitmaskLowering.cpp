@@ -36,9 +36,14 @@
 // times slower than a hand-written movemask.
 //
 // The rewrite is guarded by the cost model so that it only fires where the
-// `bitcast <N x i1> to iN` is actually cheaper than the select+reduce it
-// replaces (it is on x86; it is typically a loss on targets that lower the
-// i1-vector/integer bitcast bit-by-bit, e.g. NEON/SVE).
+// `bitcast <N x i1> to iN` is cheaper than the select+reduce it replaces.  On
+// x86 it collapses to a single movemask, a large win.  On AArch64 NEON there is
+// no movemask instruction, but the bitcast lowers to the standard mask-and +
+// horizontal-add reduction (and/bic + addv/addp), which is still cheaper than
+// the un-lowered select + OR-reduction -- so the cost model lets it fire there
+// too (a smaller win).  Targets where the i1-vector/integer bitcast is more
+// expensive than the original (the cost model decides per target) are left
+// alone.
 //
 //===----------------------------------------------------------------------===//
 

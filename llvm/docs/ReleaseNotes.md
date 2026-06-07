@@ -95,7 +95,8 @@ Makes programs 10x faster by doing Special New Thing.
   compare-to-bitmask ("movemask" / bit-pack) idiom -- a
   `vector.reduce.{or,add,xor}` of per-lane bit weights -- and rewrites it to a
   single `bitcast <N x i1> to iN` on little-endian targets where the cost model
-  finds it profitable. The backend then lowers it to a movemask instruction.
+  finds it profitable. On x86 the backend lowers it to a movemask instruction;
+  on AArch64 NEON it lowers to the mask-and + horizontal-add reduction.
 
 ### Changes to LLVM infrastructure
 

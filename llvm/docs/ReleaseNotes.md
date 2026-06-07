@@ -89,6 +89,14 @@ Makes programs 10x faster by doing Special New Thing.
 
 * Fast math flags are now permitted on `uitofp` and `sitofp`.
 
+### Changes to the Optimizers
+
+* Added a `bitmask-lowering` pass that recognizes the vectorized
+  compare-to-bitmask ("movemask" / bit-pack) idiom -- a
+  `vector.reduce.{or,add,xor}` of per-lane bit weights -- and rewrites it to a
+  single `bitcast <N x i1> to iN` on little-endian targets where the cost model
+  finds it profitable. The backend then lowers it to a movemask instruction.
+
 ### Changes to LLVM infrastructure
 
 * Removed ``Constant::isZeroValue``. It was functionally identical to

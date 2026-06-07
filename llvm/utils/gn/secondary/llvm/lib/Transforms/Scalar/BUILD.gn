@@ -14,6 +14,7 @@ static_library("Scalar") {
     "AlignmentFromAssumptions.cpp",
     "AnnotationRemarks.cpp",
     "BDCE.cpp",
+    "BitmaskLowering.cpp",
     "CallSiteSplitting.cpp",
     "ConstantHoisting.cpp",
     "ConstraintElimination.cpp",

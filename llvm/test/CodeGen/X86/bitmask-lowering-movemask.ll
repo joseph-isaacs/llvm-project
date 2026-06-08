@@ -1,4 +1,4 @@
-; RUN: opt -S -passes=bitmask-lowering -mtriple=x86_64-- < %s | llc -mtriple=x86_64-- -mattr=+avx2 | FileCheck %s
+; RUN: opt -S -passes=vector-combine -mtriple=x86_64-- < %s | llc -mtriple=x86_64-- -mattr=+avx2 | FileCheck %s
 
 ; End-to-end check that the bitmask-lowering pass turns the vectorized
 ; compare->bitmask idiom into a movemask instruction.  Before the pass the

@@ -1,11 +1,11 @@
-; RUN: opt -S -passes=bitmask-lowering -mtriple=x86_64-- < %s | FileCheck %s --check-prefixes=X86
-; RUN: opt -S -passes=bitmask-lowering -bitmask-lowering-force -data-layout="E-m:e-i64:64-n32:64" < %s | FileCheck %s --check-prefixes=BE
+; RUN: opt -S -passes=vector-combine -mtriple=x86_64-- < %s | FileCheck %s --check-prefixes=X86
+; RUN: opt -S -passes=vector-combine -data-layout="E-m:e-i64:64-n32:64" < %s | FileCheck %s --check-prefixes=BE
 
 declare i8 @llvm.vector.reduce.or.v8i8(<8 x i8>)
 
 ; On x86 the bitcast is a cheap movemask, so the cost model fires.
 ; On a big-endian target the bit order of `bitcast <N x i1> to iN` is reversed,
-; so the rewrite is unsound and must be suppressed -- even with -force.
+; so the rewrite is unsound and is unconditionally suppressed.
 define i8 @endianness_guard(<8 x i1> %m) {
 ; X86-LABEL: @endianness_guard(
 ; X86-NEXT:    [[R:%.*]] = bitcast <8 x i1> [[M:%.*]] to i8

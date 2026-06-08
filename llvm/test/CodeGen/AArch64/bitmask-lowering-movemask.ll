@@ -1,4 +1,4 @@
-; RUN: opt -S -passes=bitmask-lowering -mtriple=aarch64-- < %s | llc -mtriple=aarch64-- | FileCheck %s
+; RUN: opt -S -passes=vector-combine -mtriple=aarch64-- < %s | llc -mtriple=aarch64-- | FileCheck %s
 
 ; AArch64 has no movemask instruction, but `bitcast <N x i1> to iN` lowers to the
 ; standard NEON mask-and + horizontal-add reduction (bic/and + addp), which is

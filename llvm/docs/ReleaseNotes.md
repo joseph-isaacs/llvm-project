@@ -91,9 +91,9 @@ Makes programs 10x faster by doing Special New Thing.
 
 ### Changes to the Optimizers
 
-* Added a `bitmask-lowering` pass that recognizes the vectorized
-  compare-to-bitmask ("movemask" / bit-pack) idiom -- a
-  `vector.reduce.{or,add,xor}` of per-lane bit weights -- and rewrites it to a
+* VectorCombine now recognizes the vectorized compare-to-bitmask ("movemask" /
+  bit-pack) idiom -- a `vector.reduce.{or,add,xor}` of per-lane bit weights left
+  behind by the SLP vectorizer (llvm/llvm-project#121691) -- and rewrites it to a
   single `bitcast <N x i1> to iN` on little-endian targets where the cost model
   finds it profitable. On x86 the backend lowers it to a movemask instruction;
   on AArch64 NEON it lowers to the mask-and + horizontal-add reduction.

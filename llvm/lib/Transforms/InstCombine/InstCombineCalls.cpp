@@ -1821,6 +1821,112 @@ foldBitPositionWeightedMaskReduction(IntrinsicInst *II,
   return Builder.CreateZExt(Bits, II->getType());
 }
 
+static cl::opt<bool> EnableChunkedBitmaskFold(
+    "instcombine-chunked-bitmask-fold", cl::init(true), cl::Hidden,
+    cl::desc("Fold or-trees of shifted bit-position weighted bool-mask "
+             "selects feeding reduce.or into shifted movemask bitcasts"));
+
+/// Match a select whose lane i is `%m[i] ? 2^(Start+i) : 0` (either arm
+/// order) -- one chunk of a bit-pack whose ramp starts at bit \p Start.
+static Value *matchShiftedWeightedMask(Value *V, uint64_t &Start,
+                                       bool &Invert) {
+  auto *VecTy = dyn_cast<FixedVectorType>(V->getType());
+  if (!VecTy || !VecTy->getElementType()->isIntegerTy())
+    return nullptr;
+  unsigned N = VecTy->getNumElements();
+  unsigned EltBits = VecTy->getScalarSizeInBits();
+  if (N < 2 || EltBits < N)
+    return nullptr;
+
+  Value *M;
+  Constant *C;
+  if (match(V, m_OneUse(m_Select(m_Value(M), m_Constant(C), m_Zero()))))
+    Invert = false;
+  else if (match(V, m_OneUse(m_Select(m_Value(M), m_Zero(), m_Constant(C)))))
+    Invert = true;
+  else
+    return nullptr;
+
+  auto *MTy = dyn_cast<FixedVectorType>(M->getType());
+  if (!MTy || !MTy->getElementType()->isIntegerTy(1) ||
+      MTy->getNumElements() != N)
+    return nullptr;
+
+  auto *C0 = dyn_cast_or_null<ConstantInt>(C->getAggregateElement(0u));
+  if (!C0 || !C0->getValue().isPowerOf2())
+    return nullptr;
+  Start = C0->getValue().logBase2();
+  if (Start + N > EltBits)
+    return nullptr;
+  for (unsigned I = 1; I != N; ++I) {
+    auto *CI = dyn_cast_or_null<ConstantInt>(C->getAggregateElement(I));
+    if (!CI || CI->getValue() != (APInt(EltBits, 1) << (Start + I)))
+      return nullptr;
+  }
+  return M;
+}
+
+/// Recognize the chunked compare->bitmask idiom the LoopVectorizer leaves
+/// behind once its vector loop is fully unrolled: an or-tree whose leaves
+/// each pack one VF-wide sub-mask at consecutive bit offsets,
+///
+///   reduce.or( or( select(%m0, <1,2,4,8>,        0),
+///                  select(%m1, <16,32,64,128>,   0), ... ) )
+///
+/// and fold it to
+///
+///   or( zext(bitcast %m0), shl(zext(bitcast %m1), 4), ... )
+///
+/// This is always sound for reduce.or: or distributes over the reduction, so
+/// each leaf contributes its own (shifted) movemask independently.
+static Value *
+foldChunkedBitPositionWeightedMaskReduction(IntrinsicInst *II,
+                                            InstCombiner::BuilderTy &Builder,
+                                            const DataLayout &DL) {
+  if (!EnableChunkedBitmaskFold || DL.isBigEndian())
+    return nullptr;
+
+  Value *Root = II->getArgOperand(0);
+  if (!Root->hasOneUse() || !match(Root, m_Or(m_Value(), m_Value())))
+    return nullptr;
+
+  SmallVector<Value *, 16> Worklist{Root};
+  SmallVector<std::tuple<Value *, uint64_t, bool>, 16> Chunks;
+  while (!Worklist.empty()) {
+    Value *V = Worklist.pop_back_val();
+    Value *A, *B;
+    if (match(V, m_Or(m_Value(A), m_Value(B))) &&
+        (V == Root || V->hasOneUse())) {
+      if (Chunks.size() + Worklist.size() > 32)
+        return nullptr;
+      Worklist.push_back(A);
+      Worklist.push_back(B);
+      continue;
+    }
+    uint64_t Start;
+    bool Invert;
+    Value *M = matchShiftedWeightedMask(V, Start, Invert);
+    if (!M)
+      return nullptr;
+    Chunks.push_back({M, Start, Invert});
+  }
+  if (Chunks.size() < 2)
+    return nullptr;
+
+  Type *ResTy = II->getType();
+  Value *Res = nullptr;
+  for (auto &[M, Start, Invert] : Chunks) {
+    Value *Mask = Invert ? Builder.CreateNot(M) : M;
+    unsigned N = cast<FixedVectorType>(Mask->getType())->getNumElements();
+    Value *Bits = Builder.CreateZExt(
+        Builder.CreateBitCast(Mask, Builder.getIntNTy(N)), ResTy);
+    if (Start)
+      Bits = Builder.CreateShl(Bits, Start);
+    Res = Res ? Builder.CreateOr(Res, Bits) : Bits;
+  }
+  return Res;
+}
+
 /// Fold an unsigned minimum of trailing or leading zero bits counts:
 ///   umin(cttz(CtOp1, ZeroUndef), ConstOp) --> cttz(CtOp1 | (1 << ConstOp))
 ///   umin(ctlz(CtOp1, ZeroUndef), ConstOp) --> ctlz(CtOp1 | (SignedMin
@@ -4102,9 +4208,13 @@ Instruction *InstCombinerImpl::visitCallInst(CallInst &CI) {
       return II;
     }
 
-    if (IID == Intrinsic::vector_reduce_or)
+    if (IID == Intrinsic::vector_reduce_or) {
       if (Value *Res = foldBitPositionWeightedMaskReduction(II, Builder, DL))
         return replaceInstUsesWith(CI, Res);
+      if (Value *Res =
+              foldChunkedBitPositionWeightedMaskReduction(II, Builder, DL))
+        return replaceInstUsesWith(CI, Res);
+    }
 
     if (match(Arg, m_ZExtOrSExtOrSelf(m_Value(Vect)))) {
       if (auto *FTy = dyn_cast<FixedVectorType>(Vect->getType()))

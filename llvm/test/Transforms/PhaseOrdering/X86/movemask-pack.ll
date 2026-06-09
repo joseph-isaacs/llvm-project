@@ -126,15 +126,14 @@ entry:
 ; TODO: fold the chunked constant form to per-chunk bitcasts + shift + or;
 ; the loop-carried form needs a LoopVectorize/VPlan bit-pack reduction.
 define void @collect_bool_pack_loop(ptr %data, i64 %chunks, ptr %out) {
-; CHECK-LABEL: define void @collect_bool_pack_loop(
-; CHECK-SAME: ptr nofree readonly captures(none) [[DATA:%.*]], i64 [[CHUNKS:%.*]], ptr nofree writeonly captures(none) [[OUT:%.*]]) local_unnamed_addr #[[ATTR0:[0-9]+]] {
-; CHECK-NEXT:  [[ENTRY:.*]]:
-; CHECK-NEXT:    [[EMPTY:%.*]] = icmp eq i64 [[CHUNKS]], 0
-; CHECK-NEXT:    br i1 [[EMPTY]], label %[[EXIT:.*]], label %[[OUTER:.*]]
-; CHECK:       [[OUTER]]:
-; CHECK-NEXT:    [[CHUNK:%.*]] = phi i64 [ [[CHUNK_NEXT:%.*]], %[[OUTER]] ], [ 0, %[[ENTRY]] ]
+; CHECK-LABEL: @collect_bool_pack_loop(
+; CHECK-NEXT:  entry:
+; CHECK-NEXT:    [[EMPTY:%.*]] = icmp eq i64 [[CHUNKS:%.*]], 0
+; CHECK-NEXT:    br i1 [[EMPTY]], label [[EXIT:%.*]], label [[OUTER:%.*]]
+; CHECK:       outer:
+; CHECK-NEXT:    [[CHUNK:%.*]] = phi i64 [ [[CHUNK_NEXT:%.*]], [[OUTER]] ], [ 0, [[ENTRY:%.*]] ]
 ; CHECK-NEXT:    [[BASE:%.*]] = shl i64 [[CHUNK]], 6
-; CHECK-NEXT:    [[TMP0:%.*]] = getelementptr i8, ptr [[DATA]], i64 [[BASE]]
+; CHECK-NEXT:    [[TMP0:%.*]] = getelementptr i8, ptr [[DATA:%.*]], i64 [[BASE]]
 ; CHECK-NEXT:    [[TMP1:%.*]] = getelementptr i8, ptr [[TMP0]], i64 4
 ; CHECK-NEXT:    [[TMP2:%.*]] = getelementptr i8, ptr [[TMP0]], i64 8
 ; CHECK-NEXT:    [[TMP3:%.*]] = getelementptr i8, ptr [[TMP0]], i64 12
@@ -142,14 +141,10 @@ define void @collect_bool_pack_loop(ptr %data, i64 %chunks, ptr %out) {
 ; CHECK-NEXT:    [[WIDE_LOAD4:%.*]] = load <4 x i8>, ptr [[TMP1]], align 1
 ; CHECK-NEXT:    [[WIDE_LOAD5:%.*]] = load <4 x i8>, ptr [[TMP2]], align 1
 ; CHECK-NEXT:    [[WIDE_LOAD6:%.*]] = load <4 x i8>, ptr [[TMP3]], align 1
-; CHECK-NEXT:    [[DOTNOT:%.*]] = icmp eq <4 x i8> [[WIDE_LOAD]], zeroinitializer
-; CHECK-NEXT:    [[DOTNOT14:%.*]] = icmp eq <4 x i8> [[WIDE_LOAD4]], zeroinitializer
-; CHECK-NEXT:    [[DOTNOT15:%.*]] = icmp eq <4 x i8> [[WIDE_LOAD5]], zeroinitializer
-; CHECK-NEXT:    [[DOTNOT16:%.*]] = icmp eq <4 x i8> [[WIDE_LOAD6]], zeroinitializer
-; CHECK-NEXT:    [[TMP4:%.*]] = select <4 x i1> [[DOTNOT]], <4 x i64> zeroinitializer, <4 x i64> <i64 1, i64 2, i64 4, i64 8>
-; CHECK-NEXT:    [[TMP5:%.*]] = select <4 x i1> [[DOTNOT14]], <4 x i64> zeroinitializer, <4 x i64> <i64 16, i64 32, i64 64, i64 128>
-; CHECK-NEXT:    [[TMP6:%.*]] = select <4 x i1> [[DOTNOT15]], <4 x i64> zeroinitializer, <4 x i64> <i64 256, i64 512, i64 1024, i64 2048>
-; CHECK-NEXT:    [[TMP7:%.*]] = select <4 x i1> [[DOTNOT16]], <4 x i64> zeroinitializer, <4 x i64> <i64 4096, i64 8192, i64 16384, i64 32768>
+; CHECK-NEXT:    [[DOTNOT:%.*]] = icmp ne <4 x i8> [[WIDE_LOAD]], zeroinitializer
+; CHECK-NEXT:    [[DOTNOT14:%.*]] = icmp ne <4 x i8> [[WIDE_LOAD4]], zeroinitializer
+; CHECK-NEXT:    [[DOTNOT15:%.*]] = icmp ne <4 x i8> [[WIDE_LOAD5]], zeroinitializer
+; CHECK-NEXT:    [[DOTNOT16:%.*]] = icmp ne <4 x i8> [[WIDE_LOAD6]], zeroinitializer
 ; CHECK-NEXT:    [[TMP8:%.*]] = getelementptr i8, ptr [[TMP0]], i64 16
 ; CHECK-NEXT:    [[TMP9:%.*]] = getelementptr i8, ptr [[TMP0]], i64 20
 ; CHECK-NEXT:    [[TMP10:%.*]] = getelementptr i8, ptr [[TMP0]], i64 24
@@ -158,18 +153,10 @@ define void @collect_bool_pack_loop(ptr %data, i64 %chunks, ptr %out) {
 ; CHECK-NEXT:    [[WIDE_LOAD4_1:%.*]] = load <4 x i8>, ptr [[TMP9]], align 1
 ; CHECK-NEXT:    [[WIDE_LOAD5_1:%.*]] = load <4 x i8>, ptr [[TMP10]], align 1
 ; CHECK-NEXT:    [[WIDE_LOAD6_1:%.*]] = load <4 x i8>, ptr [[TMP11]], align 1
-; CHECK-NEXT:    [[DOTNOT17:%.*]] = icmp eq <4 x i8> [[WIDE_LOAD_1]], zeroinitializer
-; CHECK-NEXT:    [[DOTNOT18:%.*]] = icmp eq <4 x i8> [[WIDE_LOAD4_1]], zeroinitializer
-; CHECK-NEXT:    [[DOTNOT19:%.*]] = icmp eq <4 x i8> [[WIDE_LOAD5_1]], zeroinitializer
-; CHECK-NEXT:    [[DOTNOT20:%.*]] = icmp eq <4 x i8> [[WIDE_LOAD6_1]], zeroinitializer
-; CHECK-NEXT:    [[TMP12:%.*]] = select <4 x i1> [[DOTNOT17]], <4 x i64> zeroinitializer, <4 x i64> <i64 65536, i64 131072, i64 262144, i64 524288>
-; CHECK-NEXT:    [[TMP13:%.*]] = select <4 x i1> [[DOTNOT18]], <4 x i64> zeroinitializer, <4 x i64> <i64 1048576, i64 2097152, i64 4194304, i64 8388608>
-; CHECK-NEXT:    [[TMP14:%.*]] = select <4 x i1> [[DOTNOT19]], <4 x i64> zeroinitializer, <4 x i64> <i64 16777216, i64 33554432, i64 67108864, i64 134217728>
-; CHECK-NEXT:    [[TMP15:%.*]] = select <4 x i1> [[DOTNOT20]], <4 x i64> zeroinitializer, <4 x i64> <i64 268435456, i64 536870912, i64 1073741824, i64 2147483648>
-; CHECK-NEXT:    [[TMP16:%.*]] = or disjoint <4 x i64> [[TMP12]], [[TMP4]]
-; CHECK-NEXT:    [[TMP17:%.*]] = or disjoint <4 x i64> [[TMP13]], [[TMP5]]
-; CHECK-NEXT:    [[TMP18:%.*]] = or disjoint <4 x i64> [[TMP14]], [[TMP6]]
-; CHECK-NEXT:    [[TMP19:%.*]] = or disjoint <4 x i64> [[TMP15]], [[TMP7]]
+; CHECK-NEXT:    [[DOTNOT17:%.*]] = icmp ne <4 x i8> [[WIDE_LOAD_1]], zeroinitializer
+; CHECK-NEXT:    [[DOTNOT18:%.*]] = icmp ne <4 x i8> [[WIDE_LOAD4_1]], zeroinitializer
+; CHECK-NEXT:    [[DOTNOT19:%.*]] = icmp ne <4 x i8> [[WIDE_LOAD5_1]], zeroinitializer
+; CHECK-NEXT:    [[DOTNOT20:%.*]] = icmp ne <4 x i8> [[WIDE_LOAD6_1]], zeroinitializer
 ; CHECK-NEXT:    [[TMP20:%.*]] = getelementptr i8, ptr [[TMP0]], i64 32
 ; CHECK-NEXT:    [[TMP21:%.*]] = getelementptr i8, ptr [[TMP0]], i64 36
 ; CHECK-NEXT:    [[TMP22:%.*]] = getelementptr i8, ptr [[TMP0]], i64 40
@@ -178,18 +165,10 @@ define void @collect_bool_pack_loop(ptr %data, i64 %chunks, ptr %out) {
 ; CHECK-NEXT:    [[WIDE_LOAD4_2:%.*]] = load <4 x i8>, ptr [[TMP21]], align 1
 ; CHECK-NEXT:    [[WIDE_LOAD5_2:%.*]] = load <4 x i8>, ptr [[TMP22]], align 1
 ; CHECK-NEXT:    [[WIDE_LOAD6_2:%.*]] = load <4 x i8>, ptr [[TMP23]], align 1
-; CHECK-NEXT:    [[DOTNOT21:%.*]] = icmp eq <4 x i8> [[WIDE_LOAD_2]], zeroinitializer
-; CHECK-NEXT:    [[DOTNOT22:%.*]] = icmp eq <4 x i8> [[WIDE_LOAD4_2]], zeroinitializer
-; CHECK-NEXT:    [[DOTNOT23:%.*]] = icmp eq <4 x i8> [[WIDE_LOAD5_2]], zeroinitializer
-; CHECK-NEXT:    [[DOTNOT24:%.*]] = icmp eq <4 x i8> [[WIDE_LOAD6_2]], zeroinitializer
-; CHECK-NEXT:    [[TMP24:%.*]] = select <4 x i1> [[DOTNOT21]], <4 x i64> zeroinitializer, <4 x i64> <i64 4294967296, i64 8589934592, i64 17179869184, i64 34359738368>
-; CHECK-NEXT:    [[TMP25:%.*]] = select <4 x i1> [[DOTNOT22]], <4 x i64> zeroinitializer, <4 x i64> <i64 68719476736, i64 137438953472, i64 274877906944, i64 549755813888>
-; CHECK-NEXT:    [[TMP26:%.*]] = select <4 x i1> [[DOTNOT23]], <4 x i64> zeroinitializer, <4 x i64> <i64 1099511627776, i64 2199023255552, i64 4398046511104, i64 8796093022208>
-; CHECK-NEXT:    [[TMP27:%.*]] = select <4 x i1> [[DOTNOT24]], <4 x i64> zeroinitializer, <4 x i64> <i64 17592186044416, i64 35184372088832, i64 70368744177664, i64 140737488355328>
-; CHECK-NEXT:    [[TMP28:%.*]] = or disjoint <4 x i64> [[TMP24]], [[TMP16]]
-; CHECK-NEXT:    [[TMP29:%.*]] = or disjoint <4 x i64> [[TMP25]], [[TMP17]]
-; CHECK-NEXT:    [[TMP30:%.*]] = or disjoint <4 x i64> [[TMP26]], [[TMP18]]
-; CHECK-NEXT:    [[TMP31:%.*]] = or disjoint <4 x i64> [[TMP27]], [[TMP19]]
+; CHECK-NEXT:    [[DOTNOT21:%.*]] = icmp ne <4 x i8> [[WIDE_LOAD_2]], zeroinitializer
+; CHECK-NEXT:    [[DOTNOT22:%.*]] = icmp ne <4 x i8> [[WIDE_LOAD4_2]], zeroinitializer
+; CHECK-NEXT:    [[DOTNOT23:%.*]] = icmp ne <4 x i8> [[WIDE_LOAD5_2]], zeroinitializer
+; CHECK-NEXT:    [[DOTNOT24:%.*]] = icmp ne <4 x i8> [[WIDE_LOAD6_2]], zeroinitializer
 ; CHECK-NEXT:    [[TMP32:%.*]] = getelementptr i8, ptr [[TMP0]], i64 48
 ; CHECK-NEXT:    [[TMP33:%.*]] = getelementptr i8, ptr [[TMP0]], i64 52
 ; CHECK-NEXT:    [[TMP34:%.*]] = getelementptr i8, ptr [[TMP0]], i64 56
@@ -198,28 +177,78 @@ define void @collect_bool_pack_loop(ptr %data, i64 %chunks, ptr %out) {
 ; CHECK-NEXT:    [[WIDE_LOAD4_3:%.*]] = load <4 x i8>, ptr [[TMP33]], align 1
 ; CHECK-NEXT:    [[WIDE_LOAD5_3:%.*]] = load <4 x i8>, ptr [[TMP34]], align 1
 ; CHECK-NEXT:    [[WIDE_LOAD6_3:%.*]] = load <4 x i8>, ptr [[TMP35]], align 1
-; CHECK-NEXT:    [[DOTNOT25:%.*]] = icmp eq <4 x i8> [[WIDE_LOAD_3]], zeroinitializer
-; CHECK-NEXT:    [[DOTNOT26:%.*]] = icmp eq <4 x i8> [[WIDE_LOAD4_3]], zeroinitializer
-; CHECK-NEXT:    [[DOTNOT27:%.*]] = icmp eq <4 x i8> [[WIDE_LOAD5_3]], zeroinitializer
-; CHECK-NEXT:    [[DOTNOT28:%.*]] = icmp eq <4 x i8> [[WIDE_LOAD6_3]], zeroinitializer
-; CHECK-NEXT:    [[TMP36:%.*]] = select <4 x i1> [[DOTNOT25]], <4 x i64> zeroinitializer, <4 x i64> <i64 281474976710656, i64 562949953421312, i64 1125899906842624, i64 2251799813685248>
-; CHECK-NEXT:    [[TMP37:%.*]] = select <4 x i1> [[DOTNOT26]], <4 x i64> zeroinitializer, <4 x i64> <i64 4503599627370496, i64 9007199254740992, i64 18014398509481984, i64 36028797018963968>
-; CHECK-NEXT:    [[TMP38:%.*]] = select <4 x i1> [[DOTNOT27]], <4 x i64> zeroinitializer, <4 x i64> <i64 72057594037927936, i64 144115188075855872, i64 288230376151711744, i64 576460752303423488>
-; CHECK-NEXT:    [[TMP39:%.*]] = select <4 x i1> [[DOTNOT28]], <4 x i64> zeroinitializer, <4 x i64> <i64 1152921504606846976, i64 2305843009213693952, i64 4611686018427387904, i64 -9223372036854775808>
-; CHECK-NEXT:    [[TMP40:%.*]] = or disjoint <4 x i64> [[TMP36]], [[TMP28]]
-; CHECK-NEXT:    [[TMP41:%.*]] = or disjoint <4 x i64> [[TMP37]], [[TMP29]]
-; CHECK-NEXT:    [[TMP42:%.*]] = or disjoint <4 x i64> [[TMP38]], [[TMP30]]
-; CHECK-NEXT:    [[TMP43:%.*]] = or disjoint <4 x i64> [[TMP39]], [[TMP31]]
-; CHECK-NEXT:    [[BIN_RDX:%.*]] = or disjoint <4 x i64> [[TMP41]], [[TMP40]]
-; CHECK-NEXT:    [[BIN_RDX7:%.*]] = or disjoint <4 x i64> [[TMP42]], [[BIN_RDX]]
-; CHECK-NEXT:    [[BIN_RDX8:%.*]] = or <4 x i64> [[TMP43]], [[BIN_RDX7]]
-; CHECK-NEXT:    [[TMP44:%.*]] = tail call i64 @llvm.vector.reduce.or.v4i64(<4 x i64> [[BIN_RDX8]])
-; CHECK-NEXT:    [[OG:%.*]] = getelementptr [8 x i8], ptr [[OUT]], i64 [[CHUNK]]
+; CHECK-NEXT:    [[DOTNOT25:%.*]] = icmp ne <4 x i8> [[WIDE_LOAD_3]], zeroinitializer
+; CHECK-NEXT:    [[DOTNOT26:%.*]] = icmp ne <4 x i8> [[WIDE_LOAD4_3]], zeroinitializer
+; CHECK-NEXT:    [[DOTNOT27:%.*]] = icmp ne <4 x i8> [[WIDE_LOAD5_3]], zeroinitializer
+; CHECK-NEXT:    [[DOTNOT28:%.*]] = icmp ne <4 x i8> [[WIDE_LOAD6_3]], zeroinitializer
+; CHECK-NEXT:    [[TMP16:%.*]] = bitcast <4 x i1> [[DOTNOT]] to i4
+; CHECK-NEXT:    [[TMP17:%.*]] = zext i4 [[TMP16]] to i64
+; CHECK-NEXT:    [[TMP18:%.*]] = bitcast <4 x i1> [[DOTNOT17]] to i4
+; CHECK-NEXT:    [[TMP19:%.*]] = zext i4 [[TMP18]] to i64
+; CHECK-NEXT:    [[TMP77:%.*]] = shl nuw nsw i64 [[TMP19]], 16
+; CHECK-NEXT:    [[TMP78:%.*]] = or disjoint i64 [[TMP77]], [[TMP17]]
+; CHECK-NEXT:    [[TMP79:%.*]] = bitcast <4 x i1> [[DOTNOT21]] to i4
+; CHECK-NEXT:    [[TMP80:%.*]] = zext i4 [[TMP79]] to i64
+; CHECK-NEXT:    [[TMP24:%.*]] = shl nuw nsw i64 [[TMP80]], 32
+; CHECK-NEXT:    [[TMP25:%.*]] = or disjoint i64 [[TMP78]], [[TMP24]]
+; CHECK-NEXT:    [[TMP26:%.*]] = bitcast <4 x i1> [[DOTNOT25]] to i4
+; CHECK-NEXT:    [[TMP27:%.*]] = zext i4 [[TMP26]] to i64
+; CHECK-NEXT:    [[TMP28:%.*]] = shl nuw nsw i64 [[TMP27]], 48
+; CHECK-NEXT:    [[TMP29:%.*]] = or disjoint i64 [[TMP25]], [[TMP28]]
+; CHECK-NEXT:    [[TMP30:%.*]] = bitcast <4 x i1> [[DOTNOT14]] to i4
+; CHECK-NEXT:    [[TMP31:%.*]] = zext i4 [[TMP30]] to i64
+; CHECK-NEXT:    [[TMP81:%.*]] = shl nuw nsw i64 [[TMP31]], 4
+; CHECK-NEXT:    [[TMP82:%.*]] = or disjoint i64 [[TMP29]], [[TMP81]]
+; CHECK-NEXT:    [[TMP83:%.*]] = bitcast <4 x i1> [[DOTNOT18]] to i4
+; CHECK-NEXT:    [[TMP84:%.*]] = zext i4 [[TMP83]] to i64
+; CHECK-NEXT:    [[TMP36:%.*]] = shl nuw nsw i64 [[TMP84]], 20
+; CHECK-NEXT:    [[TMP37:%.*]] = or i64 [[TMP82]], [[TMP36]]
+; CHECK-NEXT:    [[TMP38:%.*]] = bitcast <4 x i1> [[DOTNOT22]] to i4
+; CHECK-NEXT:    [[TMP39:%.*]] = zext i4 [[TMP38]] to i64
+; CHECK-NEXT:    [[TMP40:%.*]] = shl nuw nsw i64 [[TMP39]], 36
+; CHECK-NEXT:    [[TMP41:%.*]] = or i64 [[TMP37]], [[TMP40]]
+; CHECK-NEXT:    [[TMP42:%.*]] = bitcast <4 x i1> [[DOTNOT26]] to i4
+; CHECK-NEXT:    [[TMP43:%.*]] = zext i4 [[TMP42]] to i64
+; CHECK-NEXT:    [[TMP85:%.*]] = shl nuw nsw i64 [[TMP43]], 52
+; CHECK-NEXT:    [[TMP45:%.*]] = or i64 [[TMP41]], [[TMP85]]
+; CHECK-NEXT:    [[TMP46:%.*]] = bitcast <4 x i1> [[DOTNOT15]] to i4
+; CHECK-NEXT:    [[TMP47:%.*]] = zext i4 [[TMP46]] to i64
+; CHECK-NEXT:    [[TMP48:%.*]] = shl nuw nsw i64 [[TMP47]], 8
+; CHECK-NEXT:    [[TMP49:%.*]] = or i64 [[TMP45]], [[TMP48]]
+; CHECK-NEXT:    [[TMP50:%.*]] = bitcast <4 x i1> [[DOTNOT19]] to i4
+; CHECK-NEXT:    [[TMP51:%.*]] = zext i4 [[TMP50]] to i64
+; CHECK-NEXT:    [[TMP52:%.*]] = shl nuw nsw i64 [[TMP51]], 24
+; CHECK-NEXT:    [[TMP53:%.*]] = or i64 [[TMP49]], [[TMP52]]
+; CHECK-NEXT:    [[TMP54:%.*]] = bitcast <4 x i1> [[DOTNOT23]] to i4
+; CHECK-NEXT:    [[TMP55:%.*]] = zext i4 [[TMP54]] to i64
+; CHECK-NEXT:    [[TMP56:%.*]] = shl nuw nsw i64 [[TMP55]], 40
+; CHECK-NEXT:    [[TMP57:%.*]] = or i64 [[TMP53]], [[TMP56]]
+; CHECK-NEXT:    [[TMP58:%.*]] = bitcast <4 x i1> [[DOTNOT27]] to i4
+; CHECK-NEXT:    [[TMP59:%.*]] = zext i4 [[TMP58]] to i64
+; CHECK-NEXT:    [[TMP60:%.*]] = shl nuw nsw i64 [[TMP59]], 56
+; CHECK-NEXT:    [[TMP61:%.*]] = or i64 [[TMP57]], [[TMP60]]
+; CHECK-NEXT:    [[TMP62:%.*]] = bitcast <4 x i1> [[DOTNOT16]] to i4
+; CHECK-NEXT:    [[TMP63:%.*]] = zext i4 [[TMP62]] to i64
+; CHECK-NEXT:    [[TMP64:%.*]] = shl nuw nsw i64 [[TMP63]], 12
+; CHECK-NEXT:    [[TMP65:%.*]] = or i64 [[TMP61]], [[TMP64]]
+; CHECK-NEXT:    [[TMP66:%.*]] = bitcast <4 x i1> [[DOTNOT20]] to i4
+; CHECK-NEXT:    [[TMP67:%.*]] = zext i4 [[TMP66]] to i64
+; CHECK-NEXT:    [[TMP68:%.*]] = shl nuw nsw i64 [[TMP67]], 28
+; CHECK-NEXT:    [[TMP69:%.*]] = or i64 [[TMP65]], [[TMP68]]
+; CHECK-NEXT:    [[TMP70:%.*]] = bitcast <4 x i1> [[DOTNOT24]] to i4
+; CHECK-NEXT:    [[TMP71:%.*]] = zext i4 [[TMP70]] to i64
+; CHECK-NEXT:    [[TMP72:%.*]] = shl nuw nsw i64 [[TMP71]], 44
+; CHECK-NEXT:    [[TMP73:%.*]] = or i64 [[TMP69]], [[TMP72]]
+; CHECK-NEXT:    [[TMP74:%.*]] = bitcast <4 x i1> [[DOTNOT28]] to i4
+; CHECK-NEXT:    [[TMP75:%.*]] = zext i4 [[TMP74]] to i64
+; CHECK-NEXT:    [[TMP76:%.*]] = shl nuw i64 [[TMP75]], 60
+; CHECK-NEXT:    [[TMP44:%.*]] = or i64 [[TMP73]], [[TMP76]]
+; CHECK-NEXT:    [[OG:%.*]] = getelementptr [8 x i8], ptr [[OUT:%.*]], i64 [[CHUNK]]
 ; CHECK-NEXT:    store i64 [[TMP44]], ptr [[OG]], align 8
 ; CHECK-NEXT:    [[CHUNK_NEXT]] = add nuw i64 [[CHUNK]], 1
 ; CHECK-NEXT:    [[OUTER_DONE:%.*]] = icmp eq i64 [[CHUNK_NEXT]], [[CHUNKS]]
-; CHECK-NEXT:    br i1 [[OUTER_DONE]], label %[[EXIT]], label %[[OUTER]]
-; CHECK:       [[EXIT]]:
+; CHECK-NEXT:    br i1 [[OUTER_DONE]], label [[EXIT]], label [[OUTER]]
+; CHECK:       exit:
 ; CHECK-NEXT:    ret void
 ;
 entry:

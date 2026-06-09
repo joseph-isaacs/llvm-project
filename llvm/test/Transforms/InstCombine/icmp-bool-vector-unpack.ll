@@ -7,6 +7,11 @@
 ;     --> bitcast (trunc X) to <N x i1>
 
 define <8 x i1> @unpack_ne_zero(i32 %x) {
+; CHECK-LABEL: @unpack_ne_zero(
+; CHECK-NEXT:    [[TMP1:%.*]] = trunc i32 [[X:%.*]] to i8
+; CHECK-NEXT:    [[CMP:%.*]] = bitcast i8 [[TMP1]] to <8 x i1>
+; CHECK-NEXT:    ret <8 x i1> [[CMP]]
+;
   %ins = insertelement <8 x i32> poison, i32 %x, i64 0
   %splat = shufflevector <8 x i32> %ins, <8 x i32> poison, <8 x i32> zeroinitializer
   %and = and <8 x i32> %splat, <i32 1, i32 2, i32 4, i32 8, i32 16, i32 32, i32 64, i32 128>
@@ -17,6 +22,12 @@ define <8 x i1> @unpack_ne_zero(i32 %x) {
 ; Comparing eq zero gives the inverted mask.
 
 define <8 x i1> @unpack_eq_zero(i32 %x) {
+; CHECK-LABEL: @unpack_eq_zero(
+; CHECK-NEXT:    [[TMP1:%.*]] = trunc i32 [[X:%.*]] to i8
+; CHECK-NEXT:    [[TMP2:%.*]] = bitcast i8 [[TMP1]] to <8 x i1>
+; CHECK-NEXT:    [[CMP:%.*]] = xor <8 x i1> [[TMP2]], splat (i1 true)
+; CHECK-NEXT:    ret <8 x i1> [[CMP]]
+;
   %ins = insertelement <8 x i32> poison, i32 %x, i64 0
   %splat = shufflevector <8 x i32> %ins, <8 x i32> poison, <8 x i32> zeroinitializer
   %and = and <8 x i32> %splat, <i32 1, i32 2, i32 4, i32 8, i32 16, i32 32, i32 64, i32 128>
@@ -27,6 +38,11 @@ define <8 x i1> @unpack_eq_zero(i32 %x) {
 ; Comparing eq against the bit constants themselves is equivalent to ne zero.
 
 define <8 x i1> @unpack_eq_bits(i32 %x) {
+; CHECK-LABEL: @unpack_eq_bits(
+; CHECK-NEXT:    [[TMP1:%.*]] = trunc i32 [[X:%.*]] to i8
+; CHECK-NEXT:    [[CMP:%.*]] = bitcast i8 [[TMP1]] to <8 x i1>
+; CHECK-NEXT:    ret <8 x i1> [[CMP]]
+;
   %ins = insertelement <8 x i32> poison, i32 %x, i64 0
   %splat = shufflevector <8 x i32> %ins, <8 x i32> poison, <8 x i32> zeroinitializer
   %and = and <8 x i32> %splat, <i32 1, i32 2, i32 4, i32 8, i32 16, i32 32, i32 64, i32 128>
@@ -35,6 +51,12 @@ define <8 x i1> @unpack_eq_bits(i32 %x) {
 }
 
 define <8 x i1> @unpack_ne_bits(i32 %x) {
+; CHECK-LABEL: @unpack_ne_bits(
+; CHECK-NEXT:    [[TMP1:%.*]] = trunc i32 [[X:%.*]] to i8
+; CHECK-NEXT:    [[TMP2:%.*]] = bitcast i8 [[TMP1]] to <8 x i1>
+; CHECK-NEXT:    [[CMP:%.*]] = xor <8 x i1> [[TMP2]], splat (i1 true)
+; CHECK-NEXT:    ret <8 x i1> [[CMP]]
+;
   %ins = insertelement <8 x i32> poison, i32 %x, i64 0
   %splat = shufflevector <8 x i32> %ins, <8 x i32> poison, <8 x i32> zeroinitializer
   %and = and <8 x i32> %splat, <i32 1, i32 2, i32 4, i32 8, i32 16, i32 32, i32 64, i32 128>
@@ -45,6 +67,11 @@ define <8 x i1> @unpack_ne_bits(i32 %x) {
 ; Fewer lanes than scalar bits: only the low 4 bits are unpacked.
 
 define <4 x i1> @unpack_narrow(i32 %x) {
+; CHECK-LABEL: @unpack_narrow(
+; CHECK-NEXT:    [[TMP1:%.*]] = trunc i32 [[X:%.*]] to i4
+; CHECK-NEXT:    [[CMP:%.*]] = bitcast i4 [[TMP1]] to <4 x i1>
+; CHECK-NEXT:    ret <4 x i1> [[CMP]]
+;
   %ins = insertelement <4 x i32> poison, i32 %x, i64 0
   %splat = shufflevector <4 x i32> %ins, <4 x i32> poison, <4 x i32> zeroinitializer
   %and = and <4 x i32> %splat, <i32 1, i32 2, i32 4, i32 8>
@@ -55,6 +82,10 @@ define <4 x i1> @unpack_narrow(i32 %x) {
 ; Lane count == element width: the trunc is a no-op.
 
 define <8 x i1> @unpack_i8_full(i8 %x) {
+; CHECK-LABEL: @unpack_i8_full(
+; CHECK-NEXT:    [[CMP:%.*]] = bitcast i8 [[X:%.*]] to <8 x i1>
+; CHECK-NEXT:    ret <8 x i1> [[CMP]]
+;
   %ins = insertelement <8 x i8> poison, i8 %x, i64 0
   %splat = shufflevector <8 x i8> %ins, <8 x i8> poison, <8 x i32> zeroinitializer
   %and = and <8 x i8> %splat, <i8 1, i8 2, i8 4, i8 8, i8 16, i8 32, i8 64, i8 128>
@@ -66,6 +97,11 @@ define <8 x i1> @unpack_i8_full(i8 %x) {
 ; immediately unpacked again must cancel and stay in vector form.
 
 define <8 x float> @pack_unpack_roundtrip(<8 x i32> %a, <8 x float> %x, <8 x float> %y) {
+; CHECK-LABEL: @pack_unpack_roundtrip(
+; CHECK-NEXT:    [[MASK1:%.*]] = icmp slt <8 x i32> [[A:%.*]], zeroinitializer
+; CHECK-NEXT:    [[SEL:%.*]] = select <8 x i1> [[MASK1]], <8 x float> [[X:%.*]], <8 x float> [[Y:%.*]]
+; CHECK-NEXT:    ret <8 x float> [[SEL]]
+;
   %mask = icmp slt <8 x i32> %a, zeroinitializer
   %pack = bitcast <8 x i1> %mask to i8
   %bits = zext i8 %pack to i32
@@ -80,6 +116,11 @@ define <8 x float> @pack_unpack_roundtrip(<8 x i32> %a, <8 x float> %x, <8 x flo
 ; Same, with the inverted compare feeding the select.
 
 define <8 x float> @pack_unpack_roundtrip_inverted(<8 x i32> %a, <8 x float> %x, <8 x float> %y) {
+; CHECK-LABEL: @pack_unpack_roundtrip_inverted(
+; CHECK-NEXT:    [[MASK1:%.*]] = icmp slt <8 x i32> [[A:%.*]], zeroinitializer
+; CHECK-NEXT:    [[SEL:%.*]] = select <8 x i1> [[MASK1]], <8 x float> [[X:%.*]], <8 x float> [[Y:%.*]]
+; CHECK-NEXT:    ret <8 x float> [[SEL]]
+;
   %mask = icmp slt <8 x i32> %a, zeroinitializer
   %pack = bitcast <8 x i1> %mask to i8
   %bits = zext i8 %pack to i32
@@ -94,6 +135,13 @@ define <8 x float> @pack_unpack_roundtrip_inverted(<8 x i32> %a, <8 x float> %x,
 ; Negative test: not a sequence of one-bit values.
 
 define <4 x i1> @unpack_not_pow2(i32 %x) {
+; CHECK-LABEL: @unpack_not_pow2(
+; CHECK-NEXT:    [[INS:%.*]] = insertelement <4 x i32> poison, i32 [[X:%.*]], i64 0
+; CHECK-NEXT:    [[SPLAT:%.*]] = shufflevector <4 x i32> [[INS]], <4 x i32> poison, <4 x i32> zeroinitializer
+; CHECK-NEXT:    [[AND:%.*]] = and <4 x i32> [[SPLAT]], <i32 1, i32 2, i32 4, i32 12>
+; CHECK-NEXT:    [[CMP:%.*]] = icmp ne <4 x i32> [[AND]], zeroinitializer
+; CHECK-NEXT:    ret <4 x i1> [[CMP]]
+;
   %ins = insertelement <4 x i32> poison, i32 %x, i64 0
   %splat = shufflevector <4 x i32> %ins, <4 x i32> poison, <4 x i32> zeroinitializer
   %and = and <4 x i32> %splat, <i32 1, i32 2, i32 4, i32 12>
@@ -104,6 +152,13 @@ define <4 x i1> @unpack_not_pow2(i32 %x) {
 ; Negative test: powers of 2, but lane I does not test bit I.
 
 define <4 x i1> @unpack_shifted_bits(i32 %x) {
+; CHECK-LABEL: @unpack_shifted_bits(
+; CHECK-NEXT:    [[INS:%.*]] = insertelement <4 x i32> poison, i32 [[X:%.*]], i64 0
+; CHECK-NEXT:    [[SPLAT:%.*]] = shufflevector <4 x i32> [[INS]], <4 x i32> poison, <4 x i32> zeroinitializer
+; CHECK-NEXT:    [[AND:%.*]] = and <4 x i32> [[SPLAT]], <i32 2, i32 4, i32 8, i32 16>
+; CHECK-NEXT:    [[CMP:%.*]] = icmp ne <4 x i32> [[AND]], zeroinitializer
+; CHECK-NEXT:    ret <4 x i1> [[CMP]]
+;
   %ins = insertelement <4 x i32> poison, i32 %x, i64 0
   %splat = shufflevector <4 x i32> %ins, <4 x i32> poison, <4 x i32> zeroinitializer
   %and = and <4 x i32> %splat, <i32 2, i32 4, i32 8, i32 16>
@@ -114,6 +169,13 @@ define <4 x i1> @unpack_shifted_bits(i32 %x) {
 ; Negative test: poison lane in the bit constants.
 
 define <4 x i1> @unpack_poison_lane(i32 %x) {
+; CHECK-LABEL: @unpack_poison_lane(
+; CHECK-NEXT:    [[INS:%.*]] = insertelement <4 x i32> poison, i32 [[X:%.*]], i64 0
+; CHECK-NEXT:    [[SPLAT:%.*]] = shufflevector <4 x i32> [[INS]], <4 x i32> poison, <4 x i32> zeroinitializer
+; CHECK-NEXT:    [[AND:%.*]] = and <4 x i32> [[SPLAT]], <i32 1, i32 2, i32 poison, i32 8>
+; CHECK-NEXT:    [[CMP:%.*]] = icmp ne <4 x i32> [[AND]], zeroinitializer
+; CHECK-NEXT:    ret <4 x i1> [[CMP]]
+;
   %ins = insertelement <4 x i32> poison, i32 %x, i64 0
   %splat = shufflevector <4 x i32> %ins, <4 x i32> poison, <4 x i32> zeroinitializer
   %and = and <4 x i32> %splat, <i32 1, i32 2, i32 poison, i32 8>
@@ -121,13 +183,37 @@ define <4 x i1> @unpack_poison_lane(i32 %x) {
   ret <4 x i1> %cmp
 }
 
-; Negative test: non-equality predicate.
+; ult against the bit constants is canonicalized to eq zero first and then
+; still folds (to the inverted mask).
 
-define <4 x i1> @unpack_wrong_pred(i32 %x) {
+define <4 x i1> @unpack_ult_bits(i32 %x) {
+; CHECK-LABEL: @unpack_ult_bits(
+; CHECK-NEXT:    [[TMP1:%.*]] = trunc i32 [[X:%.*]] to i4
+; CHECK-NEXT:    [[TMP2:%.*]] = bitcast i4 [[TMP1]] to <4 x i1>
+; CHECK-NEXT:    [[CMP:%.*]] = xor <4 x i1> [[TMP2]], splat (i1 true)
+; CHECK-NEXT:    ret <4 x i1> [[CMP]]
+;
   %ins = insertelement <4 x i32> poison, i32 %x, i64 0
   %splat = shufflevector <4 x i32> %ins, <4 x i32> poison, <4 x i32> zeroinitializer
   %and = and <4 x i32> %splat, <i32 1, i32 2, i32 4, i32 8>
   %cmp = icmp ult <4 x i32> %and, <i32 1, i32 2, i32 4, i32 8>
+  ret <4 x i1> %cmp
+}
+
+; Negative test: the compared constant is neither zero nor the bit constants.
+
+define <4 x i1> @unpack_mixed_rhs(i32 %x) {
+; CHECK-LABEL: @unpack_mixed_rhs(
+; CHECK-NEXT:    [[INS:%.*]] = insertelement <4 x i32> poison, i32 [[X:%.*]], i64 0
+; CHECK-NEXT:    [[SPLAT:%.*]] = shufflevector <4 x i32> [[INS]], <4 x i32> poison, <4 x i32> zeroinitializer
+; CHECK-NEXT:    [[AND:%.*]] = and <4 x i32> [[SPLAT]], <i32 1, i32 2, i32 4, i32 8>
+; CHECK-NEXT:    [[CMP:%.*]] = icmp eq <4 x i32> [[AND]], <i32 1, i32 0, i32 4, i32 0>
+; CHECK-NEXT:    ret <4 x i1> [[CMP]]
+;
+  %ins = insertelement <4 x i32> poison, i32 %x, i64 0
+  %splat = shufflevector <4 x i32> %ins, <4 x i32> poison, <4 x i32> zeroinitializer
+  %and = and <4 x i32> %splat, <i32 1, i32 2, i32 4, i32 8>
+  %cmp = icmp eq <4 x i32> %and, <i32 1, i32 0, i32 4, i32 0>
   ret <4 x i1> %cmp
 }
 
@@ -136,6 +222,14 @@ define <4 x i1> @unpack_wrong_pred(i32 %x) {
 declare void @use(<4 x i32>)
 
 define <4 x i1> @unpack_and_extra_use(i32 %x) {
+; CHECK-LABEL: @unpack_and_extra_use(
+; CHECK-NEXT:    [[INS:%.*]] = insertelement <4 x i32> poison, i32 [[X:%.*]], i64 0
+; CHECK-NEXT:    [[SPLAT:%.*]] = shufflevector <4 x i32> [[INS]], <4 x i32> poison, <4 x i32> zeroinitializer
+; CHECK-NEXT:    [[AND:%.*]] = and <4 x i32> [[SPLAT]], <i32 1, i32 2, i32 4, i32 8>
+; CHECK-NEXT:    call void @use(<4 x i32> [[AND]])
+; CHECK-NEXT:    [[CMP:%.*]] = icmp ne <4 x i32> [[AND]], zeroinitializer
+; CHECK-NEXT:    ret <4 x i1> [[CMP]]
+;
   %ins = insertelement <4 x i32> poison, i32 %x, i64 0
   %splat = shufflevector <4 x i32> %ins, <4 x i32> poison, <4 x i32> zeroinitializer
   %and = and <4 x i32> %splat, <i32 1, i32 2, i32 4, i32 8>
@@ -147,6 +241,14 @@ define <4 x i1> @unpack_and_extra_use(i32 %x) {
 ; Negative test: the splat has another use.
 
 define <4 x i1> @unpack_splat_extra_use(i32 %x) {
+; CHECK-LABEL: @unpack_splat_extra_use(
+; CHECK-NEXT:    [[INS:%.*]] = insertelement <4 x i32> poison, i32 [[X:%.*]], i64 0
+; CHECK-NEXT:    [[SPLAT:%.*]] = shufflevector <4 x i32> [[INS]], <4 x i32> poison, <4 x i32> zeroinitializer
+; CHECK-NEXT:    call void @use(<4 x i32> [[SPLAT]])
+; CHECK-NEXT:    [[AND:%.*]] = and <4 x i32> [[SPLAT]], <i32 1, i32 2, i32 4, i32 8>
+; CHECK-NEXT:    [[CMP:%.*]] = icmp ne <4 x i32> [[AND]], zeroinitializer
+; CHECK-NEXT:    ret <4 x i1> [[CMP]]
+;
   %ins = insertelement <4 x i32> poison, i32 %x, i64 0
   %splat = shufflevector <4 x i32> %ins, <4 x i32> poison, <4 x i32> zeroinitializer
   call void @use(<4 x i32> %splat)
@@ -158,6 +260,12 @@ define <4 x i1> @unpack_splat_extra_use(i32 %x) {
 ; Negative test: not a splat (mismatched shuffle index).
 
 define <4 x i1> @unpack_not_splat(<4 x i32> %v) {
+; CHECK-LABEL: @unpack_not_splat(
+; CHECK-NEXT:    [[SPLAT:%.*]] = shufflevector <4 x i32> [[V:%.*]], <4 x i32> poison, <4 x i32> <i32 0, i32 0, i32 1, i32 0>
+; CHECK-NEXT:    [[AND:%.*]] = and <4 x i32> [[SPLAT]], <i32 1, i32 2, i32 4, i32 8>
+; CHECK-NEXT:    [[CMP:%.*]] = icmp ne <4 x i32> [[AND]], zeroinitializer
+; CHECK-NEXT:    ret <4 x i1> [[CMP]]
+;
   %splat = shufflevector <4 x i32> %v, <4 x i32> poison, <4 x i32> <i32 0, i32 0, i32 1, i32 0>
   %and = and <4 x i32> %splat, <i32 1, i32 2, i32 4, i32 8>
   %cmp = icmp ne <4 x i32> %and, zeroinitializer

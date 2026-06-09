@@ -7,6 +7,11 @@
 target datalayout = "E"
 
 define <4 x i1> @unpack_ne_zero_be(i32 %x) {
+; CHECK-LABEL: @unpack_ne_zero_be(
+; CHECK-NEXT:    [[TMP1:%.*]] = trunc i32 [[X:%.*]] to i4
+; CHECK-NEXT:    [[CMP:%.*]] = bitcast i4 [[TMP1]] to <4 x i1>
+; CHECK-NEXT:    ret <4 x i1> [[CMP]]
+;
   %ins = insertelement <4 x i32> poison, i32 %x, i64 0
   %splat = shufflevector <4 x i32> %ins, <4 x i32> poison, <4 x i32> zeroinitializer
   %and = and <4 x i32> %splat, <i32 8, i32 4, i32 2, i32 1>
@@ -17,6 +22,13 @@ define <4 x i1> @unpack_ne_zero_be(i32 %x) {
 ; Negative test: this is the little-endian lane order.
 
 define <4 x i1> @unpack_le_order_be(i32 %x) {
+; CHECK-LABEL: @unpack_le_order_be(
+; CHECK-NEXT:    [[INS:%.*]] = insertelement <4 x i32> poison, i32 [[X:%.*]], i64 0
+; CHECK-NEXT:    [[SPLAT:%.*]] = shufflevector <4 x i32> [[INS]], <4 x i32> poison, <4 x i32> zeroinitializer
+; CHECK-NEXT:    [[AND:%.*]] = and <4 x i32> [[SPLAT]], <i32 1, i32 2, i32 4, i32 8>
+; CHECK-NEXT:    [[CMP:%.*]] = icmp ne <4 x i32> [[AND]], zeroinitializer
+; CHECK-NEXT:    ret <4 x i1> [[CMP]]
+;
   %ins = insertelement <4 x i32> poison, i32 %x, i64 0
   %splat = shufflevector <4 x i32> %ins, <4 x i32> poison, <4 x i32> zeroinitializer
   %and = and <4 x i32> %splat, <i32 1, i32 2, i32 4, i32 8>

@@ -7477,9 +7477,9 @@ static Instruction *foldVectorCmp(CmpInst &Cmp,
 /// packed into an integer and immediately unpacked again (common after
 /// inlining movemask-style code) cancel with the preceding
 /// bitcast <N x i1> --> iN.
-static Instruction *canonicalizeBoolVectorUnpack(ICmpInst &Cmp,
-                                                 const DataLayout &DL,
-                                                 InstCombiner::BuilderTy &Builder) {
+static Instruction *
+canonicalizeBoolVectorUnpack(ICmpInst &Cmp, const DataLayout &DL,
+                             InstCombiner::BuilderTy &Builder) {
   if (!Cmp.isEquality())
     return nullptr;
 

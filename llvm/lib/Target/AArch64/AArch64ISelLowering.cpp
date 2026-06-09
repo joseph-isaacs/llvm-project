@@ -26203,6 +26203,29 @@ static SDValue vectorToScalarBitmask(SDNode *N, SelectionDAG &DAG,
   // frame. Instead narrow the per-lane integer width (the lane *count*, and so
   // the bitmask, is unchanged) so the whole vector fits in 128 bits. The
   // weights 1<<i still fit: at most 16 lanes here, so >= 8-bit lanes.
+  //
+  // TODO: The 128-bit cap (and the narrowing) is a NEON-ism. On SVE subtargets
+  // the mask typically already lives in a predicate register, and the bitmask
+  // is a single predicated reduction over the lane weights:
+  //
+  //   ld1w  { z1.s }, p0/z, [weights]   ; <1, 2, 4, ..., 1<<(N-1)>
+  //   uaddv d0, p1, z1.s                ; sum of weights at active lanes
+  //
+  // with no narrowing stages and no NEON hand-off, for any mask that fits one
+  // Z register with weights that fit the element width (chunk + orr beyond
+  // that). SVE2.1 PMOV may shorten this further. Lower via UADDV instead of
+  // narrowing when the source is an SVE predicate (e.g. the SVE fixed-length
+  // masked load/store expansion in sve-fixed-length-masked-expandloads.ll).
+  //
+  // Streaming functions already prove the UADDV path viable: NEON is illegal
+  // there, so this lowering is forced onto cmpne/uzp1/and/uaddv -- but it
+  // materializes the mask with MOV z,p/z,#-1 + AND instead of feeding the
+  // predicate to UADDV, and it round-trips the small scalar result through a
+  // stack temporary (str b / ldrb + a frame) created during type
+  // legalization. A plain VECREDUCE_ADD in a streaming function extracts the
+  // same UADDV result with a single FMOV, so the UADDV implementation should
+  // construct its result the way the regular reduction lowering does, fixing
+  // that store/reload as a side effect.
   if (VecVT.getSizeInBits() > 128) {
     if (!AllowNarrowing)
       return SDValue();

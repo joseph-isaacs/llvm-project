@@ -18,3 +18,20 @@ pub fn collect_bool(src: &[u8], dst: &mut [u64]) {
         dst[chunk] = packed;
     }
 }
+
+/// Closer to real arrow-rs call sites, where the closure passed to
+/// `collect_bool` reads without bounds checks, e.g.
+/// `collect_bool(len, |i| unsafe { *src.get_unchecked(i) } != 0)`.
+#[no_mangle]
+pub fn collect_bool_unchecked(src: &[u8], dst: &mut [u64]) {
+    let chunks = src.len() / 64;
+    assert!(dst.len() >= chunks);
+    for chunk in 0..chunks {
+        let mut packed = 0u64;
+        for bit_idx in 0..64 {
+            let b = unsafe { *src.get_unchecked(chunk * 64 + bit_idx) } != 0;
+            packed |= (b as u64) << bit_idx;
+        }
+        unsafe { *dst.get_unchecked_mut(chunk) = packed };
+    }
+}

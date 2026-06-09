@@ -357,10 +357,10 @@ declare void @_ZN4core9panicking5panic17h8bbbe005ba322b34E(ptr align 1, i64, ptr
 ; Function Attrs: cold minsize noinline noreturn nounwind nonlazybind optsize uwtable
 declare void @_ZN4core9panicking18panic_bounds_check17h9ae613628793029fE(i64, i64, ptr align 8) unnamed_addr #3
 
-attributes #0 = { inlinehint nounwind nonlazybind uwtable "probe-stack"="inline-asm" "target-cpu"="x86-64" }
-attributes #1 = { nounwind nonlazybind uwtable "probe-stack"="inline-asm" "target-cpu"="x86-64" }
-attributes #2 = { cold noinline noreturn nounwind nonlazybind uwtable "probe-stack"="inline-asm" "target-cpu"="x86-64" }
-attributes #3 = { cold minsize noinline noreturn nounwind nonlazybind optsize uwtable "probe-stack"="inline-asm" "target-cpu"="x86-64" }
+attributes #0 = { inlinehint nounwind nonlazybind uwtable "probe-stack"="inline-asm" "target-cpu"="x86-64-v3" }
+attributes #1 = { nounwind nonlazybind uwtable "probe-stack"="inline-asm" "target-cpu"="x86-64-v3" }
+attributes #2 = { cold noinline noreturn nounwind nonlazybind uwtable "probe-stack"="inline-asm" "target-cpu"="x86-64-v3" }
+attributes #3 = { cold minsize noinline noreturn nounwind nonlazybind optsize uwtable "probe-stack"="inline-asm" "target-cpu"="x86-64-v3" }
 attributes #4 = { inlinehint nounwind }
 attributes #5 = { noinline noreturn nounwind }
 

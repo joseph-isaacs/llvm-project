@@ -1,0 +1,3371 @@
+*** IR Dump After SimplifyCFGPass on collect_bool ***
+; Function Attrs: nounwind nonlazybind uwtable
+define void @collect_bool(ptr align 1 %src.0, i64 %src.1, ptr align 8 %dst.0, i64 %dst.1) unnamed_addr #1 {
+start:
+  %_21 = alloca [16 x i8], align 8
+  %iter1 = alloca [16 x i8], align 8
+  %packed = alloca [8 x i8], align 8
+  %_13 = alloca [16 x i8], align 8
+  %iter = alloca [16 x i8], align 8
+  %chunks = udiv i64 %src.1, 64
+  %_6 = icmp uge i64 %dst.1, %chunks
+  br i1 %_6, label %bb2, label %bb3
+
+bb3:                                              ; preds = %start
+  call void @_ZN4core9panicking5panic17h8bbbe005ba322b34E(ptr align 1 @alloc_6957e294861d181a0a9ce74760eb0966, i64 37, ptr align 8 @alloc_74638943da2922824d60629cbfb02232) #4
+  unreachable
+
+bb2:                                              ; preds = %start
+  %0 = call { i64, i64 } @"_ZN63_$LT$I$u20$as$u20$core..iter..traits..collect..IntoIterator$GT$9into_iter17h7832bcb16f94822eE"(i64 0, i64 %chunks) #5
+  %_10.0 = extractvalue { i64, i64 } %0, 0
+  %_10.1 = extractvalue { i64, i64 } %0, 1
+  store i64 %_10.0, ptr %iter, align 8
+  %1 = getelementptr inbounds i8, ptr %iter, i64 8
+  store i64 %_10.1, ptr %1, align 8
+  br label %bb5
+
+bb5:                                              ; preds = %bb16, %bb2
+  %2 = call { i64, i64 } @"_ZN4core4iter5range101_$LT$impl$u20$core..iter..traits..iterator..Iterator$u20$for$u20$core..ops..range..Range$LT$A$GT$$GT$4next17h52a5946471487a67E"(ptr align 8 %iter) #5
+  %3 = extractvalue { i64, i64 } %2, 0
+  %4 = extractvalue { i64, i64 } %2, 1
+  store i64 %3, ptr %_13, align 8
+  %5 = getelementptr inbounds i8, ptr %_13, i64 8
+  store i64 %4, ptr %5, align 8
+  %_15 = load i64, ptr %_13, align 8
+  %6 = getelementptr inbounds i8, ptr %_13, i64 8
+  %7 = load i64, ptr %6, align 8
+  %8 = trunc nuw i64 %_15 to i1
+  br i1 %8, label %bb8, label %bb9
+
+bb8:                                              ; preds = %bb5
+  %9 = getelementptr inbounds i8, ptr %_13, i64 8
+  %chunk = load i64, ptr %9, align 8
+  store i64 0, ptr %packed, align 8
+  %10 = call { i64, i64 } @"_ZN63_$LT$I$u20$as$u20$core..iter..traits..collect..IntoIterator$GT$9into_iter17h7832bcb16f94822eE"(i64 0, i64 64) #5
+  %_18.0 = extractvalue { i64, i64 } %10, 0
+  %_18.1 = extractvalue { i64, i64 } %10, 1
+  store i64 %_18.0, ptr %iter1, align 8
+  %11 = getelementptr inbounds i8, ptr %iter1, i64 8
+  store i64 %_18.1, ptr %11, align 8
+  br label %bb11
+
+bb9:                                              ; preds = %bb5
+  ret void
+
+bb11:                                             ; preds = %bb15, %bb8
+  %12 = call { i64, i64 } @"_ZN4core4iter5range101_$LT$impl$u20$core..iter..traits..iterator..Iterator$u20$for$u20$core..ops..range..Range$LT$A$GT$$GT$4next17h52a5946471487a67E"(ptr align 8 %iter1) #5
+  %13 = extractvalue { i64, i64 } %12, 0
+  %14 = extractvalue { i64, i64 } %12, 1
+  store i64 %13, ptr %_21, align 8
+  %15 = getelementptr inbounds i8, ptr %_21, i64 8
+  store i64 %14, ptr %15, align 8
+  %_23 = load i64, ptr %_21, align 8
+  %16 = getelementptr inbounds i8, ptr %_21, i64 8
+  %17 = load i64, ptr %16, align 8
+  %18 = trunc nuw i64 %_23 to i1
+  br i1 %18, label %bb13, label %bb14
+
+bb13:                                             ; preds = %bb11
+  %19 = getelementptr inbounds i8, ptr %_21, i64 8
+  %bit_idx = load i64, ptr %19, align 8
+  %_30 = mul i64 %chunk, 64
+  %_29 = add i64 %_30, %bit_idx
+  %_32 = icmp ult i64 %_29, %src.1
+  br i1 %_32, label %bb15, label %panic2
+
+bb14:                                             ; preds = %bb11
+  %_33 = load i64, ptr %packed, align 8
+  %_36 = icmp ult i64 %chunk, %dst.1
+  br i1 %_36, label %bb16, label %panic
+
+bb16:                                             ; preds = %bb14
+  %20 = getelementptr inbounds nuw i64, ptr %dst.0, i64 %chunk
+  store i64 %_33, ptr %20, align 8
+  br label %bb5
+
+panic:                                            ; preds = %bb14
+  call void @_ZN4core9panicking18panic_bounds_check17h9ae613628793029fE(i64 %chunk, i64 %dst.1, ptr align 8 @alloc_f0b308cc4c9df2d44f594e69a671f9e6) #4
+  unreachable
+
+bb15:                                             ; preds = %bb13
+  %21 = getelementptr inbounds nuw i8, ptr %src.0, i64 %_29
+  %_28 = load i8, ptr %21, align 1
+  %_27 = icmp ne i8 %_28, 0
+  %_26 = zext i1 %_27 to i64
+  %22 = and i64 %bit_idx, 63
+  %_25 = shl i64 %_26, %22
+  %23 = load i64, ptr %packed, align 8
+  %24 = or i64 %23, %_25
+  store i64 %24, ptr %packed, align 8
+  br label %bb11
+
+panic2:                                           ; preds = %bb13
+  call void @_ZN4core9panicking18panic_bounds_check17h9ae613628793029fE(i64 %_29, i64 %src.1, ptr align 8 @alloc_f8b5cd2d0201c42fe0e3a94f0cc4a75a) #4
+  unreachable
+}
+*** IR Dump After SROAPass on collect_bool ***
+; Function Attrs: nounwind nonlazybind uwtable
+define void @collect_bool(ptr align 1 %src.0, i64 %src.1, ptr align 8 %dst.0, i64 %dst.1) unnamed_addr #1 {
+start:
+  %iter1 = alloca [16 x i8], align 8
+  %iter = alloca [16 x i8], align 8
+  %chunks = udiv i64 %src.1, 64
+  %_6 = icmp uge i64 %dst.1, %chunks
+  br i1 %_6, label %bb2, label %bb3
+
+bb3:                                              ; preds = %start
+  call void @_ZN4core9panicking5panic17h8bbbe005ba322b34E(ptr align 1 @alloc_6957e294861d181a0a9ce74760eb0966, i64 37, ptr align 8 @alloc_74638943da2922824d60629cbfb02232) #4
+  unreachable
+
+bb2:                                              ; preds = %start
+  %0 = call { i64, i64 } @"_ZN63_$LT$I$u20$as$u20$core..iter..traits..collect..IntoIterator$GT$9into_iter17h7832bcb16f94822eE"(i64 0, i64 %chunks) #5
+  %_10.0 = extractvalue { i64, i64 } %0, 0
+  %_10.1 = extractvalue { i64, i64 } %0, 1
+  store i64 %_10.0, ptr %iter, align 8
+  %1 = getelementptr inbounds i8, ptr %iter, i64 8
+  store i64 %_10.1, ptr %1, align 8
+  br label %bb5
+
+bb5:                                              ; preds = %bb16, %bb2
+  %2 = call { i64, i64 } @"_ZN4core4iter5range101_$LT$impl$u20$core..iter..traits..iterator..Iterator$u20$for$u20$core..ops..range..Range$LT$A$GT$$GT$4next17h52a5946471487a67E"(ptr align 8 %iter) #5
+  %3 = extractvalue { i64, i64 } %2, 0
+  %4 = extractvalue { i64, i64 } %2, 1
+  %5 = trunc nuw i64 %3 to i1
+  br i1 %5, label %bb8, label %bb9
+
+bb8:                                              ; preds = %bb5
+  %6 = call { i64, i64 } @"_ZN63_$LT$I$u20$as$u20$core..iter..traits..collect..IntoIterator$GT$9into_iter17h7832bcb16f94822eE"(i64 0, i64 64) #5
+  %_18.0 = extractvalue { i64, i64 } %6, 0
+  %_18.1 = extractvalue { i64, i64 } %6, 1
+  store i64 %_18.0, ptr %iter1, align 8
+  %7 = getelementptr inbounds i8, ptr %iter1, i64 8
+  store i64 %_18.1, ptr %7, align 8
+  br label %bb11
+
+bb9:                                              ; preds = %bb5
+  ret void
+
+bb11:                                             ; preds = %bb15, %bb8
+  %packed.sroa.0.0 = phi i64 [ 0, %bb8 ], [ %15, %bb15 ]
+  %8 = call { i64, i64 } @"_ZN4core4iter5range101_$LT$impl$u20$core..iter..traits..iterator..Iterator$u20$for$u20$core..ops..range..Range$LT$A$GT$$GT$4next17h52a5946471487a67E"(ptr align 8 %iter1) #5
+  %9 = extractvalue { i64, i64 } %8, 0
+  %10 = extractvalue { i64, i64 } %8, 1
+  %11 = trunc nuw i64 %9 to i1
+  br i1 %11, label %bb13, label %bb14
+
+bb13:                                             ; preds = %bb11
+  %_30 = mul i64 %4, 64
+  %_29 = add i64 %_30, %10
+  %_32 = icmp ult i64 %_29, %src.1
+  br i1 %_32, label %bb15, label %panic2
+
+bb14:                                             ; preds = %bb11
+  %_36 = icmp ult i64 %4, %dst.1
+  br i1 %_36, label %bb16, label %panic
+
+bb16:                                             ; preds = %bb14
+  %12 = getelementptr inbounds nuw i64, ptr %dst.0, i64 %4
+  store i64 %packed.sroa.0.0, ptr %12, align 8
+  br label %bb5
+
+panic:                                            ; preds = %bb14
+  call void @_ZN4core9panicking18panic_bounds_check17h9ae613628793029fE(i64 %4, i64 %dst.1, ptr align 8 @alloc_f0b308cc4c9df2d44f594e69a671f9e6) #4
+  unreachable
+
+bb15:                                             ; preds = %bb13
+  %13 = getelementptr inbounds nuw i8, ptr %src.0, i64 %_29
+  %_28 = load i8, ptr %13, align 1
+  %_27 = icmp ne i8 %_28, 0
+  %_26 = zext i1 %_27 to i64
+  %14 = and i64 %10, 63
+  %_25 = shl i64 %_26, %14
+  %15 = or i64 %packed.sroa.0.0, %_25
+  br label %bb11
+
+panic2:                                           ; preds = %bb13
+  call void @_ZN4core9panicking18panic_bounds_check17h9ae613628793029fE(i64 %_29, i64 %src.1, ptr align 8 @alloc_f8b5cd2d0201c42fe0e3a94f0cc4a75a) #4
+  unreachable
+}
+*** IR Dump After IPSCCPPass on [module] ***
+; Function Attrs: nounwind nonlazybind uwtable
+define void @collect_bool(ptr align 1 %src.0, i64 %src.1, ptr align 8 %dst.0, i64 %dst.1) unnamed_addr #1 {
+start:
+  %iter1 = alloca [16 x i8], align 8
+  %iter = alloca [16 x i8], align 8
+  %chunks = udiv i64 %src.1, 64
+  %_6 = icmp uge i64 %dst.1, %chunks
+  br i1 %_6, label %bb2, label %bb3
+
+bb3:                                              ; preds = %start
+  call void @_ZN4core9panicking5panic17h8bbbe005ba322b34E(ptr align 1 @alloc_6957e294861d181a0a9ce74760eb0966, i64 37, ptr align 8 @alloc_74638943da2922824d60629cbfb02232) #4
+  unreachable
+
+bb2:                                              ; preds = %start
+  %0 = call { i64, i64 } @"_ZN63_$LT$I$u20$as$u20$core..iter..traits..collect..IntoIterator$GT$9into_iter17h7832bcb16f94822eE"(i64 0, i64 %chunks) #5
+  %_10.0 = extractvalue { i64, i64 } %0, 0
+  %_10.1 = extractvalue { i64, i64 } %0, 1
+  store i64 %_10.0, ptr %iter, align 8
+  %1 = getelementptr inbounds nuw i8, ptr %iter, i64 8
+  store i64 %_10.1, ptr %1, align 8
+  br label %bb5
+
+bb5:                                              ; preds = %bb16, %bb2
+  %2 = call { i64, i64 } @"_ZN4core4iter5range101_$LT$impl$u20$core..iter..traits..iterator..Iterator$u20$for$u20$core..ops..range..Range$LT$A$GT$$GT$4next17h52a5946471487a67E"(ptr align 8 %iter) #5
+  %3 = extractvalue { i64, i64 } %2, 0
+  %4 = extractvalue { i64, i64 } %2, 1
+  %5 = trunc nuw i64 %3 to i1
+  br i1 %5, label %bb8, label %bb9
+
+bb8:                                              ; preds = %bb5
+  %6 = call { i64, i64 } @"_ZN63_$LT$I$u20$as$u20$core..iter..traits..collect..IntoIterator$GT$9into_iter17h7832bcb16f94822eE"(i64 0, i64 64) #5
+  %_18.0 = extractvalue { i64, i64 } %6, 0
+  %_18.1 = extractvalue { i64, i64 } %6, 1
+  store i64 %_18.0, ptr %iter1, align 8
+  %7 = getelementptr inbounds nuw i8, ptr %iter1, i64 8
+  store i64 %_18.1, ptr %7, align 8
+  br label %bb11
+
+bb9:                                              ; preds = %bb5
+  ret void
+
+bb11:                                             ; preds = %bb15, %bb8
+  %packed.sroa.0.0 = phi i64 [ 0, %bb8 ], [ %15, %bb15 ]
+  %8 = call { i64, i64 } @"_ZN4core4iter5range101_$LT$impl$u20$core..iter..traits..iterator..Iterator$u20$for$u20$core..ops..range..Range$LT$A$GT$$GT$4next17h52a5946471487a67E"(ptr align 8 %iter1) #5
+  %9 = extractvalue { i64, i64 } %8, 0
+  %10 = extractvalue { i64, i64 } %8, 1
+  %11 = trunc nuw i64 %9 to i1
+  br i1 %11, label %bb13, label %bb14
+
+bb13:                                             ; preds = %bb11
+  %_30 = mul i64 %4, 64
+  %_29 = add i64 %_30, %10
+  %_32 = icmp ult i64 %_29, %src.1
+  br i1 %_32, label %bb15, label %panic2
+
+bb14:                                             ; preds = %bb11
+  %_36 = icmp ult i64 %4, %dst.1
+  br i1 %_36, label %bb16, label %panic
+
+bb16:                                             ; preds = %bb14
+  %12 = getelementptr inbounds nuw i64, ptr %dst.0, i64 %4
+  store i64 %packed.sroa.0.0, ptr %12, align 8
+  br label %bb5
+
+panic:                                            ; preds = %bb14
+  call void @_ZN4core9panicking18panic_bounds_check17h9ae613628793029fE(i64 %4, i64 %dst.1, ptr align 8 @alloc_f0b308cc4c9df2d44f594e69a671f9e6) #4
+  unreachable
+
+bb15:                                             ; preds = %bb13
+  %13 = getelementptr inbounds nuw i8, ptr %src.0, i64 %_29
+  %_28 = load i8, ptr %13, align 1
+  %_27 = icmp ne i8 %_28, 0
+  %_26 = zext i1 %_27 to i64
+  %14 = and i64 %10, 63
+  %_25 = shl nuw i64 %_26, %14
+  %15 = or i64 %packed.sroa.0.0, %_25
+  br label %bb11
+
+panic2:                                           ; preds = %bb13
+  call void @_ZN4core9panicking18panic_bounds_check17h9ae613628793029fE(i64 %_29, i64 %src.1, ptr align 8 @alloc_f8b5cd2d0201c42fe0e3a94f0cc4a75a) #4
+  unreachable
+}
+*** IR Dump After InstCombinePass on collect_bool ***
+; Function Attrs: nounwind nonlazybind uwtable
+define void @collect_bool(ptr align 1 %src.0, i64 %src.1, ptr align 8 %dst.0, i64 %dst.1) unnamed_addr #1 {
+start:
+  %iter1 = alloca [16 x i8], align 8
+  %iter = alloca [16 x i8], align 8
+  %chunks4 = lshr i64 %src.1, 6
+  %_6.not = icmp ult i64 %dst.1, %chunks4
+  br i1 %_6.not, label %bb3, label %bb2
+
+bb3:                                              ; preds = %start
+  call void @_ZN4core9panicking5panic17h8bbbe005ba322b34E(ptr nonnull align 1 @alloc_6957e294861d181a0a9ce74760eb0966, i64 37, ptr nonnull align 8 @alloc_74638943da2922824d60629cbfb02232) #4
+  unreachable
+
+bb2:                                              ; preds = %start
+  %0 = call { i64, i64 } @"_ZN63_$LT$I$u20$as$u20$core..iter..traits..collect..IntoIterator$GT$9into_iter17h7832bcb16f94822eE"(i64 0, i64 %chunks4) #5
+  %_10.0 = extractvalue { i64, i64 } %0, 0
+  %_10.1 = extractvalue { i64, i64 } %0, 1
+  store i64 %_10.0, ptr %iter, align 8
+  %1 = getelementptr inbounds nuw i8, ptr %iter, i64 8
+  store i64 %_10.1, ptr %1, align 8
+  br label %bb5
+
+bb5:                                              ; preds = %bb16, %bb2
+  %2 = call { i64, i64 } @"_ZN4core4iter5range101_$LT$impl$u20$core..iter..traits..iterator..Iterator$u20$for$u20$core..ops..range..Range$LT$A$GT$$GT$4next17h52a5946471487a67E"(ptr nonnull align 8 %iter) #5
+  %3 = extractvalue { i64, i64 } %2, 0
+  %4 = extractvalue { i64, i64 } %2, 1
+  %5 = trunc nuw i64 %3 to i1
+  br i1 %5, label %bb8, label %bb9
+
+bb8:                                              ; preds = %bb5
+  %6 = call { i64, i64 } @"_ZN63_$LT$I$u20$as$u20$core..iter..traits..collect..IntoIterator$GT$9into_iter17h7832bcb16f94822eE"(i64 0, i64 64) #5
+  %_18.0 = extractvalue { i64, i64 } %6, 0
+  %_18.1 = extractvalue { i64, i64 } %6, 1
+  store i64 %_18.0, ptr %iter1, align 8
+  %7 = getelementptr inbounds nuw i8, ptr %iter1, i64 8
+  store i64 %_18.1, ptr %7, align 8
+  br label %bb11
+
+bb9:                                              ; preds = %bb5
+  ret void
+
+bb11:                                             ; preds = %bb15, %bb8
+  %packed.sroa.0.0 = phi i64 [ 0, %bb8 ], [ %15, %bb15 ]
+  %8 = call { i64, i64 } @"_ZN4core4iter5range101_$LT$impl$u20$core..iter..traits..iterator..Iterator$u20$for$u20$core..ops..range..Range$LT$A$GT$$GT$4next17h52a5946471487a67E"(ptr nonnull align 8 %iter1) #5
+  %9 = extractvalue { i64, i64 } %8, 0
+  %10 = extractvalue { i64, i64 } %8, 1
+  %11 = trunc nuw i64 %9 to i1
+  br i1 %11, label %bb13, label %bb14
+
+bb13:                                             ; preds = %bb11
+  %_30 = shl i64 %4, 6
+  %_29 = add i64 %_30, %10
+  %_32 = icmp ult i64 %_29, %src.1
+  br i1 %_32, label %bb15, label %panic2
+
+bb14:                                             ; preds = %bb11
+  %_36 = icmp ult i64 %4, %dst.1
+  br i1 %_36, label %bb16, label %panic
+
+bb16:                                             ; preds = %bb14
+  %12 = getelementptr inbounds nuw [8 x i8], ptr %dst.0, i64 %4
+  store i64 %packed.sroa.0.0, ptr %12, align 8
+  br label %bb5
+
+panic:                                            ; preds = %bb14
+  call void @_ZN4core9panicking18panic_bounds_check17h9ae613628793029fE(i64 %4, i64 %dst.1, ptr nonnull align 8 @alloc_f0b308cc4c9df2d44f594e69a671f9e6) #4
+  unreachable
+
+bb15:                                             ; preds = %bb13
+  %13 = getelementptr inbounds nuw i8, ptr %src.0, i64 %_29
+  %_28 = load i8, ptr %13, align 1
+  %_27 = icmp ne i8 %_28, 0
+  %_26 = zext i1 %_27 to i64
+  %14 = and i64 %10, 63
+  %_25 = shl nuw i64 %_26, %14
+  %15 = or i64 %packed.sroa.0.0, %_25
+  br label %bb11
+
+panic2:                                           ; preds = %bb13
+  call void @_ZN4core9panicking18panic_bounds_check17h9ae613628793029fE(i64 %_29, i64 %src.1, ptr nonnull align 8 @alloc_f8b5cd2d0201c42fe0e3a94f0cc4a75a) #4
+  unreachable
+}
+*** IR Dump After InlinerPass on (collect_bool) ***
+; Function Attrs: nounwind nonlazybind uwtable
+define void @collect_bool(ptr align 1 %src.0, i64 %src.1, ptr align 8 %dst.0, i64 %dst.1) unnamed_addr #2 {
+start:
+  %iter1 = alloca [16 x i8], align 8
+  %iter = alloca [16 x i8], align 8
+  %chunks4 = lshr i64 %src.1, 6
+  %_6.not = icmp ult i64 %dst.1, %chunks4
+  br i1 %_6.not, label %bb3, label %bb2
+
+bb3:                                              ; preds = %start
+  call void @_ZN4core9panicking5panic17h8bbbe005ba322b34E(ptr nonnull align 1 @alloc_6957e294861d181a0a9ce74760eb0966, i64 37, ptr nonnull align 8 @alloc_74638943da2922824d60629cbfb02232) #5
+  unreachable
+
+bb2:                                              ; preds = %start
+  %0 = insertvalue { i64, i64 } { i64 0, i64 poison }, i64 %chunks4, 1
+  %_10.0 = extractvalue { i64, i64 } %0, 0
+  %_10.1 = extractvalue { i64, i64 } %0, 1
+  store i64 %_10.0, ptr %iter, align 8
+  %1 = getelementptr inbounds nuw i8, ptr %iter, i64 8
+  store i64 %_10.1, ptr %1, align 8
+  br label %bb5
+
+bb5:                                              ; preds = %bb16, %bb2
+  %_4.i.i = getelementptr inbounds nuw i8, ptr %iter, i64 8
+  %_3.i.i.i = load i64, ptr %iter, align 8
+  %_4.i.i.i = load i64, ptr %_4.i.i, align 8
+  %_0.i.i.i = icmp ult i64 %_3.i.i.i, %_4.i.i.i
+  br i1 %_0.i.i.i, label %bb2.i.i, label %"_ZN4core4iter5range101_$LT$impl$u20$core..iter..traits..iterator..Iterator$u20$for$u20$core..ops..range..Range$LT$A$GT$$GT$4next17h52a5946471487a67E.exit"
+
+bb2.i.i:                                          ; preds = %bb5
+  %_0.i1.i.i = add nuw i64 %_3.i.i.i, 1
+  store i64 %_0.i1.i.i, ptr %iter, align 8
+  br label %"_ZN4core4iter5range101_$LT$impl$u20$core..iter..traits..iterator..Iterator$u20$for$u20$core..ops..range..Range$LT$A$GT$$GT$4next17h52a5946471487a67E.exit"
+
+"_ZN4core4iter5range101_$LT$impl$u20$core..iter..traits..iterator..Iterator$u20$for$u20$core..ops..range..Range$LT$A$GT$$GT$4next17h52a5946471487a67E.exit": ; preds = %bb5, %bb2.i.i
+  %_0.sroa.0.0.i.i = phi i64 [ 1, %bb2.i.i ], [ 0, %bb5 ]
+  %2 = insertvalue { i64, i64 } poison, i64 %_0.sroa.0.0.i.i, 0
+  %3 = insertvalue { i64, i64 } %2, i64 %_3.i.i.i, 1
+  %4 = extractvalue { i64, i64 } %3, 0
+  %5 = extractvalue { i64, i64 } %3, 1
+  %6 = trunc nuw i64 %4 to i1
+  br i1 %6, label %bb8, label %bb9
+
+bb8:                                              ; preds = %"_ZN4core4iter5range101_$LT$impl$u20$core..iter..traits..iterator..Iterator$u20$for$u20$core..ops..range..Range$LT$A$GT$$GT$4next17h52a5946471487a67E.exit"
+  %_18.0 = extractvalue { i64, i64 } { i64 0, i64 64 }, 0
+  %_18.1 = extractvalue { i64, i64 } { i64 0, i64 64 }, 1
+  store i64 %_18.0, ptr %iter1, align 8
+  %7 = getelementptr inbounds nuw i8, ptr %iter1, i64 8
+  store i64 %_18.1, ptr %7, align 8
+  br label %bb11
+
+bb9:                                              ; preds = %"_ZN4core4iter5range101_$LT$impl$u20$core..iter..traits..iterator..Iterator$u20$for$u20$core..ops..range..Range$LT$A$GT$$GT$4next17h52a5946471487a67E.exit"
+  ret void
+
+bb11:                                             ; preds = %bb15, %bb8
+  %packed.sroa.0.0 = phi i64 [ 0, %bb8 ], [ %16, %bb15 ]
+  %_4.i.i5 = getelementptr inbounds nuw i8, ptr %iter1, i64 8
+  %_3.i.i.i6 = load i64, ptr %iter1, align 8
+  %_4.i.i.i7 = load i64, ptr %_4.i.i5, align 8
+  %_0.i.i.i8 = icmp ult i64 %_3.i.i.i6, %_4.i.i.i7
+  br i1 %_0.i.i.i8, label %bb2.i.i10, label %"_ZN4core4iter5range101_$LT$impl$u20$core..iter..traits..iterator..Iterator$u20$for$u20$core..ops..range..Range$LT$A$GT$$GT$4next17h52a5946471487a67E.exit12"
+
+bb2.i.i10:                                        ; preds = %bb11
+  %_0.i1.i.i11 = add nuw i64 %_3.i.i.i6, 1
+  store i64 %_0.i1.i.i11, ptr %iter1, align 8
+  br label %"_ZN4core4iter5range101_$LT$impl$u20$core..iter..traits..iterator..Iterator$u20$for$u20$core..ops..range..Range$LT$A$GT$$GT$4next17h52a5946471487a67E.exit12"
+
+"_ZN4core4iter5range101_$LT$impl$u20$core..iter..traits..iterator..Iterator$u20$for$u20$core..ops..range..Range$LT$A$GT$$GT$4next17h52a5946471487a67E.exit12": ; preds = %bb11, %bb2.i.i10
+  %_0.sroa.0.0.i.i9 = phi i64 [ 1, %bb2.i.i10 ], [ 0, %bb11 ]
+  %8 = insertvalue { i64, i64 } poison, i64 %_0.sroa.0.0.i.i9, 0
+  %9 = insertvalue { i64, i64 } %8, i64 %_3.i.i.i6, 1
+  %10 = extractvalue { i64, i64 } %9, 0
+  %11 = extractvalue { i64, i64 } %9, 1
+  %12 = trunc nuw i64 %10 to i1
+  br i1 %12, label %bb13, label %bb14
+
+bb13:                                             ; preds = %"_ZN4core4iter5range101_$LT$impl$u20$core..iter..traits..iterator..Iterator$u20$for$u20$core..ops..range..Range$LT$A$GT$$GT$4next17h52a5946471487a67E.exit12"
+  %_30 = shl i64 %5, 6
+  %_29 = add i64 %_30, %11
+  %_32 = icmp ult i64 %_29, %src.1
+  br i1 %_32, label %bb15, label %panic2
+
+bb14:                                             ; preds = %"_ZN4core4iter5range101_$LT$impl$u20$core..iter..traits..iterator..Iterator$u20$for$u20$core..ops..range..Range$LT$A$GT$$GT$4next17h52a5946471487a67E.exit12"
+  %_36 = icmp ult i64 %5, %dst.1
+  br i1 %_36, label %bb16, label %panic
+
+bb16:                                             ; preds = %bb14
+  %13 = getelementptr inbounds nuw [8 x i8], ptr %dst.0, i64 %5
+  store i64 %packed.sroa.0.0, ptr %13, align 8
+  br label %bb5
+
+panic:                                            ; preds = %bb14
+  call void @_ZN4core9panicking18panic_bounds_check17h9ae613628793029fE(i64 %5, i64 %dst.1, ptr nonnull align 8 @alloc_f0b308cc4c9df2d44f594e69a671f9e6) #5
+  unreachable
+
+bb15:                                             ; preds = %bb13
+  %14 = getelementptr inbounds nuw i8, ptr %src.0, i64 %_29
+  %_28 = load i8, ptr %14, align 1
+  %_27 = icmp ne i8 %_28, 0
+  %_26 = zext i1 %_27 to i64
+  %15 = and i64 %11, 63
+  %_25 = shl nuw i64 %_26, %15
+  %16 = or i64 %packed.sroa.0.0, %_25
+  br label %bb11
+
+panic2:                                           ; preds = %bb13
+  call void @_ZN4core9panicking18panic_bounds_check17h9ae613628793029fE(i64 %_29, i64 %src.1, ptr nonnull align 8 @alloc_f8b5cd2d0201c42fe0e3a94f0cc4a75a) #5
+  unreachable
+}
+*** IR Dump After PostOrderFunctionAttrsPass on (collect_bool) ***
+; Function Attrs: nounwind nonlazybind uwtable
+define void @collect_bool(ptr nofree readonly align 1 captures(none) %src.0, i64 %src.1, ptr nofree writeonly align 8 captures(none) %dst.0, i64 %dst.1) unnamed_addr #2 {
+start:
+  %iter1 = alloca [16 x i8], align 8
+  %iter = alloca [16 x i8], align 8
+  %chunks4 = lshr i64 %src.1, 6
+  %_6.not = icmp ult i64 %dst.1, %chunks4
+  br i1 %_6.not, label %bb3, label %bb2
+
+bb3:                                              ; preds = %start
+  call void @_ZN4core9panicking5panic17h8bbbe005ba322b34E(ptr nonnull align 1 @alloc_6957e294861d181a0a9ce74760eb0966, i64 37, ptr nonnull align 8 @alloc_74638943da2922824d60629cbfb02232) #5
+  unreachable
+
+bb2:                                              ; preds = %start
+  %0 = insertvalue { i64, i64 } { i64 0, i64 poison }, i64 %chunks4, 1
+  %_10.0 = extractvalue { i64, i64 } %0, 0
+  %_10.1 = extractvalue { i64, i64 } %0, 1
+  store i64 %_10.0, ptr %iter, align 8
+  %1 = getelementptr inbounds nuw i8, ptr %iter, i64 8
+  store i64 %_10.1, ptr %1, align 8
+  br label %bb5
+
+bb5:                                              ; preds = %bb16, %bb2
+  %_4.i.i = getelementptr inbounds nuw i8, ptr %iter, i64 8
+  %_3.i.i.i = load i64, ptr %iter, align 8
+  %_4.i.i.i = load i64, ptr %_4.i.i, align 8
+  %_0.i.i.i = icmp ult i64 %_3.i.i.i, %_4.i.i.i
+  br i1 %_0.i.i.i, label %bb2.i.i, label %"_ZN4core4iter5range101_$LT$impl$u20$core..iter..traits..iterator..Iterator$u20$for$u20$core..ops..range..Range$LT$A$GT$$GT$4next17h52a5946471487a67E.exit"
+
+bb2.i.i:                                          ; preds = %bb5
+  %_0.i1.i.i = add nuw i64 %_3.i.i.i, 1
+  store i64 %_0.i1.i.i, ptr %iter, align 8
+  br label %"_ZN4core4iter5range101_$LT$impl$u20$core..iter..traits..iterator..Iterator$u20$for$u20$core..ops..range..Range$LT$A$GT$$GT$4next17h52a5946471487a67E.exit"
+
+"_ZN4core4iter5range101_$LT$impl$u20$core..iter..traits..iterator..Iterator$u20$for$u20$core..ops..range..Range$LT$A$GT$$GT$4next17h52a5946471487a67E.exit": ; preds = %bb5, %bb2.i.i
+  %_0.sroa.0.0.i.i = phi i64 [ 1, %bb2.i.i ], [ 0, %bb5 ]
+  %2 = insertvalue { i64, i64 } poison, i64 %_0.sroa.0.0.i.i, 0
+  %3 = insertvalue { i64, i64 } %2, i64 %_3.i.i.i, 1
+  %4 = extractvalue { i64, i64 } %3, 0
+  %5 = extractvalue { i64, i64 } %3, 1
+  %6 = trunc nuw i64 %4 to i1
+  br i1 %6, label %bb8, label %bb9
+
+bb8:                                              ; preds = %"_ZN4core4iter5range101_$LT$impl$u20$core..iter..traits..iterator..Iterator$u20$for$u20$core..ops..range..Range$LT$A$GT$$GT$4next17h52a5946471487a67E.exit"
+  %_18.0 = extractvalue { i64, i64 } { i64 0, i64 64 }, 0
+  %_18.1 = extractvalue { i64, i64 } { i64 0, i64 64 }, 1
+  store i64 %_18.0, ptr %iter1, align 8
+  %7 = getelementptr inbounds nuw i8, ptr %iter1, i64 8
+  store i64 %_18.1, ptr %7, align 8
+  br label %bb11
+
+bb9:                                              ; preds = %"_ZN4core4iter5range101_$LT$impl$u20$core..iter..traits..iterator..Iterator$u20$for$u20$core..ops..range..Range$LT$A$GT$$GT$4next17h52a5946471487a67E.exit"
+  ret void
+
+bb11:                                             ; preds = %bb15, %bb8
+  %packed.sroa.0.0 = phi i64 [ 0, %bb8 ], [ %16, %bb15 ]
+  %_4.i.i5 = getelementptr inbounds nuw i8, ptr %iter1, i64 8
+  %_3.i.i.i6 = load i64, ptr %iter1, align 8
+  %_4.i.i.i7 = load i64, ptr %_4.i.i5, align 8
+  %_0.i.i.i8 = icmp ult i64 %_3.i.i.i6, %_4.i.i.i7
+  br i1 %_0.i.i.i8, label %bb2.i.i10, label %"_ZN4core4iter5range101_$LT$impl$u20$core..iter..traits..iterator..Iterator$u20$for$u20$core..ops..range..Range$LT$A$GT$$GT$4next17h52a5946471487a67E.exit12"
+
+bb2.i.i10:                                        ; preds = %bb11
+  %_0.i1.i.i11 = add nuw i64 %_3.i.i.i6, 1
+  store i64 %_0.i1.i.i11, ptr %iter1, align 8
+  br label %"_ZN4core4iter5range101_$LT$impl$u20$core..iter..traits..iterator..Iterator$u20$for$u20$core..ops..range..Range$LT$A$GT$$GT$4next17h52a5946471487a67E.exit12"
+
+"_ZN4core4iter5range101_$LT$impl$u20$core..iter..traits..iterator..Iterator$u20$for$u20$core..ops..range..Range$LT$A$GT$$GT$4next17h52a5946471487a67E.exit12": ; preds = %bb11, %bb2.i.i10
+  %_0.sroa.0.0.i.i9 = phi i64 [ 1, %bb2.i.i10 ], [ 0, %bb11 ]
+  %8 = insertvalue { i64, i64 } poison, i64 %_0.sroa.0.0.i.i9, 0
+  %9 = insertvalue { i64, i64 } %8, i64 %_3.i.i.i6, 1
+  %10 = extractvalue { i64, i64 } %9, 0
+  %11 = extractvalue { i64, i64 } %9, 1
+  %12 = trunc nuw i64 %10 to i1
+  br i1 %12, label %bb13, label %bb14
+
+bb13:                                             ; preds = %"_ZN4core4iter5range101_$LT$impl$u20$core..iter..traits..iterator..Iterator$u20$for$u20$core..ops..range..Range$LT$A$GT$$GT$4next17h52a5946471487a67E.exit12"
+  %_30 = shl i64 %5, 6
+  %_29 = add i64 %_30, %11
+  %_32 = icmp ult i64 %_29, %src.1
+  br i1 %_32, label %bb15, label %panic2
+
+bb14:                                             ; preds = %"_ZN4core4iter5range101_$LT$impl$u20$core..iter..traits..iterator..Iterator$u20$for$u20$core..ops..range..Range$LT$A$GT$$GT$4next17h52a5946471487a67E.exit12"
+  %_36 = icmp ult i64 %5, %dst.1
+  br i1 %_36, label %bb16, label %panic
+
+bb16:                                             ; preds = %bb14
+  %13 = getelementptr inbounds nuw [8 x i8], ptr %dst.0, i64 %5
+  store i64 %packed.sroa.0.0, ptr %13, align 8
+  br label %bb5
+
+panic:                                            ; preds = %bb14
+  call void @_ZN4core9panicking18panic_bounds_check17h9ae613628793029fE(i64 %5, i64 %dst.1, ptr nonnull align 8 @alloc_f0b308cc4c9df2d44f594e69a671f9e6) #5
+  unreachable
+
+bb15:                                             ; preds = %bb13
+  %14 = getelementptr inbounds nuw i8, ptr %src.0, i64 %_29
+  %_28 = load i8, ptr %14, align 1
+  %_27 = icmp ne i8 %_28, 0
+  %_26 = zext i1 %_27 to i64
+  %15 = and i64 %11, 63
+  %_25 = shl nuw i64 %_26, %15
+  %16 = or i64 %packed.sroa.0.0, %_25
+  br label %bb11
+
+panic2:                                           ; preds = %bb13
+  call void @_ZN4core9panicking18panic_bounds_check17h9ae613628793029fE(i64 %_29, i64 %src.1, ptr nonnull align 8 @alloc_f8b5cd2d0201c42fe0e3a94f0cc4a75a) #5
+  unreachable
+}
+*** IR Dump After SROAPass on collect_bool ***
+; Function Attrs: nounwind nonlazybind uwtable
+define void @collect_bool(ptr nofree readonly align 1 captures(none) %src.0, i64 %src.1, ptr nofree writeonly align 8 captures(none) %dst.0, i64 %dst.1) unnamed_addr #2 {
+start:
+  %chunks4 = lshr i64 %src.1, 6
+  %_6.not = icmp ult i64 %dst.1, %chunks4
+  br i1 %_6.not, label %bb3, label %bb2
+
+bb3:                                              ; preds = %start
+  call void @_ZN4core9panicking5panic17h8bbbe005ba322b34E(ptr nonnull align 1 @alloc_6957e294861d181a0a9ce74760eb0966, i64 37, ptr nonnull align 8 @alloc_74638943da2922824d60629cbfb02232) #5
+  unreachable
+
+bb2:                                              ; preds = %start
+  %0 = insertvalue { i64, i64 } { i64 0, i64 poison }, i64 %chunks4, 1
+  %_10.0 = extractvalue { i64, i64 } %0, 0
+  %_10.1 = extractvalue { i64, i64 } %0, 1
+  br label %bb5
+
+bb5:                                              ; preds = %bb16, %bb2
+  %iter.sroa.0.0 = phi i64 [ %_10.0, %bb2 ], [ %iter.sroa.0.1, %bb16 ]
+  %_0.i.i.i = icmp ult i64 %iter.sroa.0.0, %_10.1
+  br i1 %_0.i.i.i, label %bb2.i.i, label %"_ZN4core4iter5range101_$LT$impl$u20$core..iter..traits..iterator..Iterator$u20$for$u20$core..ops..range..Range$LT$A$GT$$GT$4next17h52a5946471487a67E.exit"
+
+bb2.i.i:                                          ; preds = %bb5
+  %_0.i1.i.i = add nuw i64 %iter.sroa.0.0, 1
+  br label %"_ZN4core4iter5range101_$LT$impl$u20$core..iter..traits..iterator..Iterator$u20$for$u20$core..ops..range..Range$LT$A$GT$$GT$4next17h52a5946471487a67E.exit"
+
+"_ZN4core4iter5range101_$LT$impl$u20$core..iter..traits..iterator..Iterator$u20$for$u20$core..ops..range..Range$LT$A$GT$$GT$4next17h52a5946471487a67E.exit": ; preds = %bb5, %bb2.i.i
+  %iter.sroa.0.1 = phi i64 [ %_0.i1.i.i, %bb2.i.i ], [ %iter.sroa.0.0, %bb5 ]
+  %_0.sroa.0.0.i.i = phi i64 [ 1, %bb2.i.i ], [ 0, %bb5 ]
+  %1 = insertvalue { i64, i64 } poison, i64 %_0.sroa.0.0.i.i, 0
+  %2 = insertvalue { i64, i64 } %1, i64 %iter.sroa.0.0, 1
+  %3 = extractvalue { i64, i64 } %2, 0
+  %4 = extractvalue { i64, i64 } %2, 1
+  %5 = trunc nuw i64 %3 to i1
+  br i1 %5, label %bb8, label %bb9
+
+bb8:                                              ; preds = %"_ZN4core4iter5range101_$LT$impl$u20$core..iter..traits..iterator..Iterator$u20$for$u20$core..ops..range..Range$LT$A$GT$$GT$4next17h52a5946471487a67E.exit"
+  %_18.0 = extractvalue { i64, i64 } { i64 0, i64 64 }, 0
+  %_18.1 = extractvalue { i64, i64 } { i64 0, i64 64 }, 1
+  br label %bb11
+
+bb9:                                              ; preds = %"_ZN4core4iter5range101_$LT$impl$u20$core..iter..traits..iterator..Iterator$u20$for$u20$core..ops..range..Range$LT$A$GT$$GT$4next17h52a5946471487a67E.exit"
+  ret void
+
+bb11:                                             ; preds = %bb15, %bb8
+  %iter1.sroa.0.0 = phi i64 [ %_18.0, %bb8 ], [ %iter1.sroa.0.1, %bb15 ]
+  %packed.sroa.0.0 = phi i64 [ 0, %bb8 ], [ %14, %bb15 ]
+  %_0.i.i.i8 = icmp ult i64 %iter1.sroa.0.0, %_18.1
+  br i1 %_0.i.i.i8, label %bb2.i.i10, label %"_ZN4core4iter5range101_$LT$impl$u20$core..iter..traits..iterator..Iterator$u20$for$u20$core..ops..range..Range$LT$A$GT$$GT$4next17h52a5946471487a67E.exit12"
+
+bb2.i.i10:                                        ; preds = %bb11
+  %_0.i1.i.i11 = add nuw i64 %iter1.sroa.0.0, 1
+  br label %"_ZN4core4iter5range101_$LT$impl$u20$core..iter..traits..iterator..Iterator$u20$for$u20$core..ops..range..Range$LT$A$GT$$GT$4next17h52a5946471487a67E.exit12"
+
+"_ZN4core4iter5range101_$LT$impl$u20$core..iter..traits..iterator..Iterator$u20$for$u20$core..ops..range..Range$LT$A$GT$$GT$4next17h52a5946471487a67E.exit12": ; preds = %bb11, %bb2.i.i10
+  %iter1.sroa.0.1 = phi i64 [ %_0.i1.i.i11, %bb2.i.i10 ], [ %iter1.sroa.0.0, %bb11 ]
+  %_0.sroa.0.0.i.i9 = phi i64 [ 1, %bb2.i.i10 ], [ 0, %bb11 ]
+  %6 = insertvalue { i64, i64 } poison, i64 %_0.sroa.0.0.i.i9, 0
+  %7 = insertvalue { i64, i64 } %6, i64 %iter1.sroa.0.0, 1
+  %8 = extractvalue { i64, i64 } %7, 0
+  %9 = extractvalue { i64, i64 } %7, 1
+  %10 = trunc nuw i64 %8 to i1
+  br i1 %10, label %bb13, label %bb14
+
+bb13:                                             ; preds = %"_ZN4core4iter5range101_$LT$impl$u20$core..iter..traits..iterator..Iterator$u20$for$u20$core..ops..range..Range$LT$A$GT$$GT$4next17h52a5946471487a67E.exit12"
+  %_30 = shl i64 %4, 6
+  %_29 = add i64 %_30, %9
+  %_32 = icmp ult i64 %_29, %src.1
+  br i1 %_32, label %bb15, label %panic2
+
+bb14:                                             ; preds = %"_ZN4core4iter5range101_$LT$impl$u20$core..iter..traits..iterator..Iterator$u20$for$u20$core..ops..range..Range$LT$A$GT$$GT$4next17h52a5946471487a67E.exit12"
+  %_36 = icmp ult i64 %4, %dst.1
+  br i1 %_36, label %bb16, label %panic
+
+bb16:                                             ; preds = %bb14
+  %11 = getelementptr inbounds nuw [8 x i8], ptr %dst.0, i64 %4
+  store i64 %packed.sroa.0.0, ptr %11, align 8
+  br label %bb5
+
+panic:                                            ; preds = %bb14
+  call void @_ZN4core9panicking18panic_bounds_check17h9ae613628793029fE(i64 %4, i64 %dst.1, ptr nonnull align 8 @alloc_f0b308cc4c9df2d44f594e69a671f9e6) #5
+  unreachable
+
+bb15:                                             ; preds = %bb13
+  %12 = getelementptr inbounds nuw i8, ptr %src.0, i64 %_29
+  %_28 = load i8, ptr %12, align 1
+  %_27 = icmp ne i8 %_28, 0
+  %_26 = zext i1 %_27 to i64
+  %13 = and i64 %9, 63
+  %_25 = shl nuw i64 %_26, %13
+  %14 = or i64 %packed.sroa.0.0, %_25
+  br label %bb11
+
+panic2:                                           ; preds = %bb13
+  call void @_ZN4core9panicking18panic_bounds_check17h9ae613628793029fE(i64 %_29, i64 %src.1, ptr nonnull align 8 @alloc_f8b5cd2d0201c42fe0e3a94f0cc4a75a) #5
+  unreachable
+}
+*** IR Dump After EarlyCSEPass on collect_bool ***
+; Function Attrs: nounwind nonlazybind uwtable
+define void @collect_bool(ptr nofree readonly align 1 captures(none) %src.0, i64 %src.1, ptr nofree writeonly align 8 captures(none) %dst.0, i64 %dst.1) unnamed_addr #2 {
+start:
+  %chunks4 = lshr i64 %src.1, 6
+  %_6.not = icmp ult i64 %dst.1, %chunks4
+  br i1 %_6.not, label %bb3, label %bb2
+
+bb3:                                              ; preds = %start
+  call void @_ZN4core9panicking5panic17h8bbbe005ba322b34E(ptr nonnull align 1 @alloc_6957e294861d181a0a9ce74760eb0966, i64 37, ptr nonnull align 8 @alloc_74638943da2922824d60629cbfb02232) #5
+  unreachable
+
+bb2:                                              ; preds = %start
+  %0 = insertvalue { i64, i64 } { i64 0, i64 poison }, i64 %chunks4, 1
+  %_10.0 = extractvalue { i64, i64 } %0, 0
+  br label %bb5
+
+bb5:                                              ; preds = %bb16, %bb2
+  %iter.sroa.0.0 = phi i64 [ %_10.0, %bb2 ], [ %iter.sroa.0.1, %bb16 ]
+  %_0.i.i.i = icmp ult i64 %iter.sroa.0.0, %chunks4
+  br i1 %_0.i.i.i, label %bb2.i.i, label %"_ZN4core4iter5range101_$LT$impl$u20$core..iter..traits..iterator..Iterator$u20$for$u20$core..ops..range..Range$LT$A$GT$$GT$4next17h52a5946471487a67E.exit"
+
+bb2.i.i:                                          ; preds = %bb5
+  %_0.i1.i.i = add nuw i64 %iter.sroa.0.0, 1
+  br label %"_ZN4core4iter5range101_$LT$impl$u20$core..iter..traits..iterator..Iterator$u20$for$u20$core..ops..range..Range$LT$A$GT$$GT$4next17h52a5946471487a67E.exit"
+
+"_ZN4core4iter5range101_$LT$impl$u20$core..iter..traits..iterator..Iterator$u20$for$u20$core..ops..range..Range$LT$A$GT$$GT$4next17h52a5946471487a67E.exit": ; preds = %bb5, %bb2.i.i
+  %iter.sroa.0.1 = phi i64 [ %_0.i1.i.i, %bb2.i.i ], [ %iter.sroa.0.0, %bb5 ]
+  %_0.sroa.0.0.i.i = phi i64 [ 1, %bb2.i.i ], [ 0, %bb5 ]
+  %1 = insertvalue { i64, i64 } poison, i64 %_0.sroa.0.0.i.i, 0
+  %2 = insertvalue { i64, i64 } %1, i64 %iter.sroa.0.0, 1
+  %3 = trunc nuw i64 %_0.sroa.0.0.i.i to i1
+  br i1 %3, label %bb8, label %bb9
+
+bb8:                                              ; preds = %"_ZN4core4iter5range101_$LT$impl$u20$core..iter..traits..iterator..Iterator$u20$for$u20$core..ops..range..Range$LT$A$GT$$GT$4next17h52a5946471487a67E.exit"
+  br label %bb11
+
+bb9:                                              ; preds = %"_ZN4core4iter5range101_$LT$impl$u20$core..iter..traits..iterator..Iterator$u20$for$u20$core..ops..range..Range$LT$A$GT$$GT$4next17h52a5946471487a67E.exit"
+  ret void
+
+bb11:                                             ; preds = %bb15, %bb8
+  %iter1.sroa.0.0 = phi i64 [ 0, %bb8 ], [ %iter1.sroa.0.1, %bb15 ]
+  %packed.sroa.0.0 = phi i64 [ 0, %bb8 ], [ %10, %bb15 ]
+  %_0.i.i.i8 = icmp ult i64 %iter1.sroa.0.0, 64
+  br i1 %_0.i.i.i8, label %bb2.i.i10, label %"_ZN4core4iter5range101_$LT$impl$u20$core..iter..traits..iterator..Iterator$u20$for$u20$core..ops..range..Range$LT$A$GT$$GT$4next17h52a5946471487a67E.exit12"
+
+bb2.i.i10:                                        ; preds = %bb11
+  %_0.i1.i.i11 = add nuw i64 %iter1.sroa.0.0, 1
+  br label %"_ZN4core4iter5range101_$LT$impl$u20$core..iter..traits..iterator..Iterator$u20$for$u20$core..ops..range..Range$LT$A$GT$$GT$4next17h52a5946471487a67E.exit12"
+
+"_ZN4core4iter5range101_$LT$impl$u20$core..iter..traits..iterator..Iterator$u20$for$u20$core..ops..range..Range$LT$A$GT$$GT$4next17h52a5946471487a67E.exit12": ; preds = %bb11, %bb2.i.i10
+  %iter1.sroa.0.1 = phi i64 [ %_0.i1.i.i11, %bb2.i.i10 ], [ %iter1.sroa.0.0, %bb11 ]
+  %_0.sroa.0.0.i.i9 = phi i64 [ 1, %bb2.i.i10 ], [ 0, %bb11 ]
+  %4 = insertvalue { i64, i64 } poison, i64 %_0.sroa.0.0.i.i9, 0
+  %5 = insertvalue { i64, i64 } %4, i64 %iter1.sroa.0.0, 1
+  %6 = trunc nuw i64 %_0.sroa.0.0.i.i9 to i1
+  br i1 %6, label %bb13, label %bb14
+
+bb13:                                             ; preds = %"_ZN4core4iter5range101_$LT$impl$u20$core..iter..traits..iterator..Iterator$u20$for$u20$core..ops..range..Range$LT$A$GT$$GT$4next17h52a5946471487a67E.exit12"
+  %_30 = shl i64 %iter.sroa.0.0, 6
+  %_29 = add i64 %_30, %iter1.sroa.0.0
+  %_32 = icmp ult i64 %_29, %src.1
+  br i1 %_32, label %bb15, label %panic2
+
+bb14:                                             ; preds = %"_ZN4core4iter5range101_$LT$impl$u20$core..iter..traits..iterator..Iterator$u20$for$u20$core..ops..range..Range$LT$A$GT$$GT$4next17h52a5946471487a67E.exit12"
+  %_36 = icmp ult i64 %iter.sroa.0.0, %dst.1
+  br i1 %_36, label %bb16, label %panic
+
+bb16:                                             ; preds = %bb14
+  %7 = getelementptr inbounds nuw [8 x i8], ptr %dst.0, i64 %iter.sroa.0.0
+  store i64 %packed.sroa.0.0, ptr %7, align 8
+  br label %bb5
+
+panic:                                            ; preds = %bb14
+  call void @_ZN4core9panicking18panic_bounds_check17h9ae613628793029fE(i64 %iter.sroa.0.0, i64 %dst.1, ptr nonnull align 8 @alloc_f0b308cc4c9df2d44f594e69a671f9e6) #5
+  unreachable
+
+bb15:                                             ; preds = %bb13
+  %8 = getelementptr inbounds nuw i8, ptr %src.0, i64 %_29
+  %_28 = load i8, ptr %8, align 1
+  %_27 = icmp ne i8 %_28, 0
+  %_26 = zext i1 %_27 to i64
+  %9 = and i64 %iter1.sroa.0.0, 63
+  %_25 = shl nuw i64 %_26, %9
+  %10 = or i64 %packed.sroa.0.0, %_25
+  br label %bb11
+
+panic2:                                           ; preds = %bb13
+  call void @_ZN4core9panicking18panic_bounds_check17h9ae613628793029fE(i64 %_29, i64 %src.1, ptr nonnull align 8 @alloc_f8b5cd2d0201c42fe0e3a94f0cc4a75a) #5
+  unreachable
+}
+*** IR Dump After JumpThreadingPass on collect_bool ***
+; Function Attrs: nounwind nonlazybind uwtable
+define void @collect_bool(ptr nofree readonly align 1 captures(none) %src.0, i64 %src.1, ptr nofree writeonly align 8 captures(none) %dst.0, i64 %dst.1) unnamed_addr #2 {
+start:
+  %chunks4 = lshr i64 %src.1, 6
+  %_6.not = icmp ult i64 %dst.1, %chunks4
+  br i1 %_6.not, label %bb3, label %bb2
+
+bb3:                                              ; preds = %start
+  call void @_ZN4core9panicking5panic17h8bbbe005ba322b34E(ptr nonnull align 1 @alloc_6957e294861d181a0a9ce74760eb0966, i64 37, ptr nonnull align 8 @alloc_74638943da2922824d60629cbfb02232) #5
+  unreachable
+
+bb2:                                              ; preds = %start
+  %0 = insertvalue { i64, i64 } { i64 0, i64 poison }, i64 %chunks4, 1
+  %_10.0 = extractvalue { i64, i64 } %0, 0
+  br label %bb5
+
+bb5:                                              ; preds = %bb16, %bb2
+  %iter.sroa.0.0 = phi i64 [ %_10.0, %bb2 ], [ %_0.i1.i.i, %bb16 ]
+  %_0.i.i.i = icmp ult i64 %iter.sroa.0.0, %chunks4
+  br i1 %_0.i.i.i, label %bb8, label %bb9
+
+bb8:                                              ; preds = %bb5
+  %_0.i1.i.i = add nuw i64 %iter.sroa.0.0, 1
+  br label %bb11
+
+bb9:                                              ; preds = %bb5
+  %iter.sroa.0.1 = phi i64 [ %iter.sroa.0.0, %bb5 ]
+  %_0.sroa.0.0.i.i = phi i64 [ 0, %bb5 ]
+  %1 = insertvalue { i64, i64 } poison, i64 %_0.sroa.0.0.i.i, 0
+  %2 = insertvalue { i64, i64 } %1, i64 %iter.sroa.0.0, 1
+  ret void
+
+bb11:                                             ; preds = %bb15, %bb8
+  %iter1.sroa.0.0 = phi i64 [ 0, %bb8 ], [ %_0.i1.i.i11, %bb15 ]
+  %packed.sroa.0.0 = phi i64 [ 0, %bb8 ], [ %8, %bb15 ]
+  %_0.i.i.i8 = icmp ult i64 %iter1.sroa.0.0, 64
+  br i1 %_0.i.i.i8, label %bb13, label %bb14
+
+bb13:                                             ; preds = %bb11
+  %_0.i1.i.i11 = add nuw i64 %iter1.sroa.0.0, 1
+  %_30 = shl i64 %iter.sroa.0.0, 6
+  %_29 = add i64 %_30, %iter1.sroa.0.0
+  %_32 = icmp ult i64 %_29, %src.1
+  br i1 %_32, label %bb15, label %panic2
+
+bb14:                                             ; preds = %bb11
+  %iter1.sroa.0.1 = phi i64 [ %iter1.sroa.0.0, %bb11 ]
+  %_0.sroa.0.0.i.i9 = phi i64 [ 0, %bb11 ]
+  %3 = insertvalue { i64, i64 } poison, i64 %_0.sroa.0.0.i.i9, 0
+  %4 = insertvalue { i64, i64 } %3, i64 %iter1.sroa.0.0, 1
+  %_36 = icmp ult i64 %iter.sroa.0.0, %dst.1
+  br i1 %_36, label %bb16, label %panic
+
+bb16:                                             ; preds = %bb14
+  %5 = getelementptr inbounds nuw [8 x i8], ptr %dst.0, i64 %iter.sroa.0.0
+  store i64 %packed.sroa.0.0, ptr %5, align 8
+  br label %bb5
+
+panic:                                            ; preds = %bb14
+  call void @_ZN4core9panicking18panic_bounds_check17h9ae613628793029fE(i64 %iter.sroa.0.0, i64 %dst.1, ptr nonnull align 8 @alloc_f0b308cc4c9df2d44f594e69a671f9e6) #5
+  unreachable
+
+bb15:                                             ; preds = %bb13
+  %6 = getelementptr inbounds nuw i8, ptr %src.0, i64 %_29
+  %_28 = load i8, ptr %6, align 1
+  %_27 = icmp ne i8 %_28, 0
+  %_26 = zext i1 %_27 to i64
+  %7 = and i64 %iter1.sroa.0.0, 63
+  %_25 = shl nuw i64 %_26, %7
+  %8 = or i64 %packed.sroa.0.0, %_25
+  br label %bb11
+
+panic2:                                           ; preds = %bb13
+  call void @_ZN4core9panicking18panic_bounds_check17h9ae613628793029fE(i64 %_29, i64 %src.1, ptr nonnull align 8 @alloc_f8b5cd2d0201c42fe0e3a94f0cc4a75a) #5
+  unreachable
+}
+*** IR Dump After CorrelatedValuePropagationPass on collect_bool ***
+; Function Attrs: nounwind nonlazybind uwtable
+define void @collect_bool(ptr nofree readonly align 1 captures(none) %src.0, i64 %src.1, ptr nofree writeonly align 8 captures(none) %dst.0, i64 %dst.1) unnamed_addr #2 {
+start:
+  %chunks4 = lshr i64 %src.1, 6
+  %_6.not = icmp ult i64 %dst.1, %chunks4
+  br i1 %_6.not, label %bb3, label %bb2
+
+bb3:                                              ; preds = %start
+  call void @_ZN4core9panicking5panic17h8bbbe005ba322b34E(ptr nonnull align 1 @alloc_6957e294861d181a0a9ce74760eb0966, i64 37, ptr nonnull align 8 @alloc_74638943da2922824d60629cbfb02232) #5
+  unreachable
+
+bb2:                                              ; preds = %start
+  %0 = insertvalue { i64, i64 } { i64 0, i64 poison }, i64 %chunks4, 1
+  %_10.0 = extractvalue { i64, i64 } %0, 0
+  br label %bb5
+
+bb5:                                              ; preds = %bb16, %bb2
+  %iter.sroa.0.0 = phi i64 [ %_10.0, %bb2 ], [ %_0.i1.i.i, %bb16 ]
+  %_0.i.i.i = icmp ult i64 %iter.sroa.0.0, %chunks4
+  br i1 %_0.i.i.i, label %bb8, label %bb9
+
+bb8:                                              ; preds = %bb5
+  %_0.i1.i.i = add nuw i64 %iter.sroa.0.0, 1
+  br label %bb11
+
+bb9:                                              ; preds = %bb5
+  %1 = insertvalue { i64, i64 } poison, i64 0, 0
+  %2 = insertvalue { i64, i64 } %1, i64 %iter.sroa.0.0, 1
+  ret void
+
+bb11:                                             ; preds = %bb15, %bb8
+  %iter1.sroa.0.0 = phi i64 [ 0, %bb8 ], [ %_0.i1.i.i11, %bb15 ]
+  %packed.sroa.0.0 = phi i64 [ 0, %bb8 ], [ %7, %bb15 ]
+  %_0.i.i.i8 = icmp ult i64 %iter1.sroa.0.0, 64
+  br i1 %_0.i.i.i8, label %bb13, label %bb14
+
+bb13:                                             ; preds = %bb11
+  %_0.i1.i.i11 = add nuw nsw i64 %iter1.sroa.0.0, 1
+  %_30 = shl i64 %iter.sroa.0.0, 6
+  %_29 = add nuw i64 %_30, %iter1.sroa.0.0
+  %_32 = icmp ult i64 %_29, %src.1
+  br i1 %_32, label %bb15, label %panic2
+
+bb14:                                             ; preds = %bb11
+  %3 = insertvalue { i64, i64 } poison, i64 0, 0
+  %4 = insertvalue { i64, i64 } %3, i64 %iter1.sroa.0.0, 1
+  %_36 = icmp ult i64 %iter.sroa.0.0, %dst.1
+  br i1 %_36, label %bb16, label %panic
+
+bb16:                                             ; preds = %bb14
+  %5 = getelementptr inbounds nuw [8 x i8], ptr %dst.0, i64 %iter.sroa.0.0
+  store i64 %packed.sroa.0.0, ptr %5, align 8
+  br label %bb5
+
+panic:                                            ; preds = %bb14
+  call void @_ZN4core9panicking18panic_bounds_check17h9ae613628793029fE(i64 %iter.sroa.0.0, i64 %dst.1, ptr nonnull align 8 @alloc_f0b308cc4c9df2d44f594e69a671f9e6) #5
+  unreachable
+
+bb15:                                             ; preds = %bb13
+  %6 = getelementptr inbounds nuw i8, ptr %src.0, i64 %_29
+  %_28 = load i8, ptr %6, align 1
+  %_27 = icmp ne i8 %_28, 0
+  %_26 = zext i1 %_27 to i64
+  %_25 = shl nuw i64 %_26, %iter1.sroa.0.0
+  %7 = or i64 %packed.sroa.0.0, %_25
+  br label %bb11
+
+panic2:                                           ; preds = %bb13
+  call void @_ZN4core9panicking18panic_bounds_check17h9ae613628793029fE(i64 %_29, i64 %src.1, ptr nonnull align 8 @alloc_f8b5cd2d0201c42fe0e3a94f0cc4a75a) #5
+  unreachable
+}
+*** IR Dump After InstCombinePass on collect_bool ***
+; Function Attrs: nounwind nonlazybind uwtable
+define void @collect_bool(ptr nofree readonly align 1 captures(none) %src.0, i64 %src.1, ptr nofree writeonly align 8 captures(none) %dst.0, i64 %dst.1) unnamed_addr #2 {
+start:
+  %chunks4 = lshr i64 %src.1, 6
+  %_6.not = icmp ult i64 %dst.1, %chunks4
+  br i1 %_6.not, label %bb3, label %bb2
+
+bb3:                                              ; preds = %start
+  call void @_ZN4core9panicking5panic17h8bbbe005ba322b34E(ptr nonnull align 1 @alloc_6957e294861d181a0a9ce74760eb0966, i64 37, ptr nonnull align 8 @alloc_74638943da2922824d60629cbfb02232) #5
+  unreachable
+
+bb2:                                              ; preds = %start
+  br label %bb5
+
+bb5:                                              ; preds = %bb16, %bb2
+  %iter.sroa.0.0 = phi i64 [ 0, %bb2 ], [ %_0.i1.i.i, %bb16 ]
+  %_0.i.i.i = icmp ult i64 %iter.sroa.0.0, %chunks4
+  br i1 %_0.i.i.i, label %bb8, label %bb9
+
+bb8:                                              ; preds = %bb5
+  %_0.i1.i.i = add nuw i64 %iter.sroa.0.0, 1
+  br label %bb11
+
+bb9:                                              ; preds = %bb5
+  ret void
+
+bb11:                                             ; preds = %bb15, %bb8
+  %iter1.sroa.0.0 = phi i64 [ 0, %bb8 ], [ %_0.i1.i.i11, %bb15 ]
+  %packed.sroa.0.0 = phi i64 [ 0, %bb8 ], [ %2, %bb15 ]
+  %_0.i.i.i8 = icmp samesign ult i64 %iter1.sroa.0.0, 64
+  br i1 %_0.i.i.i8, label %bb13, label %bb14
+
+bb13:                                             ; preds = %bb11
+  %_30 = shl i64 %iter.sroa.0.0, 6
+  %_29 = or disjoint i64 %_30, %iter1.sroa.0.0
+  %_32 = icmp ult i64 %_29, %src.1
+  br i1 %_32, label %bb15, label %panic2
+
+bb14:                                             ; preds = %bb11
+  %_36 = icmp ult i64 %iter.sroa.0.0, %dst.1
+  br i1 %_36, label %bb16, label %panic
+
+bb16:                                             ; preds = %bb14
+  %0 = getelementptr inbounds nuw [8 x i8], ptr %dst.0, i64 %iter.sroa.0.0
+  store i64 %packed.sroa.0.0, ptr %0, align 8
+  br label %bb5
+
+panic:                                            ; preds = %bb14
+  call void @_ZN4core9panicking18panic_bounds_check17h9ae613628793029fE(i64 %iter.sroa.0.0, i64 %dst.1, ptr nonnull align 8 @alloc_f0b308cc4c9df2d44f594e69a671f9e6) #5
+  unreachable
+
+bb15:                                             ; preds = %bb13
+  %_0.i1.i.i11 = add nuw nsw i64 %iter1.sroa.0.0, 1
+  %1 = getelementptr inbounds nuw i8, ptr %src.0, i64 %_29
+  %_28 = load i8, ptr %1, align 1
+  %_27 = icmp ne i8 %_28, 0
+  %_26 = zext i1 %_27 to i64
+  %_25 = shl nuw i64 %_26, %iter1.sroa.0.0
+  %2 = or i64 %packed.sroa.0.0, %_25
+  br label %bb11
+
+panic2:                                           ; preds = %bb13
+  call void @_ZN4core9panicking18panic_bounds_check17h9ae613628793029fE(i64 %_29, i64 %src.1, ptr nonnull align 8 @alloc_f8b5cd2d0201c42fe0e3a94f0cc4a75a) #5
+  unreachable
+}
+*** IR Dump After TailCallElimPass on collect_bool ***
+; Function Attrs: nounwind nonlazybind uwtable
+define void @collect_bool(ptr nofree readonly align 1 captures(none) %src.0, i64 %src.1, ptr nofree writeonly align 8 captures(none) %dst.0, i64 %dst.1) unnamed_addr #2 {
+start:
+  %chunks4 = lshr i64 %src.1, 6
+  %_6.not = icmp ult i64 %dst.1, %chunks4
+  br i1 %_6.not, label %bb3, label %bb2
+
+bb3:                                              ; preds = %start
+  tail call void @_ZN4core9panicking5panic17h8bbbe005ba322b34E(ptr nonnull align 1 @alloc_6957e294861d181a0a9ce74760eb0966, i64 37, ptr nonnull align 8 @alloc_74638943da2922824d60629cbfb02232) #5
+  unreachable
+
+bb2:                                              ; preds = %start
+  br label %bb5
+
+bb5:                                              ; preds = %bb16, %bb2
+  %iter.sroa.0.0 = phi i64 [ 0, %bb2 ], [ %_0.i1.i.i, %bb16 ]
+  %_0.i.i.i = icmp ult i64 %iter.sroa.0.0, %chunks4
+  br i1 %_0.i.i.i, label %bb8, label %bb9
+
+bb8:                                              ; preds = %bb5
+  %_0.i1.i.i = add nuw i64 %iter.sroa.0.0, 1
+  br label %bb11
+
+bb9:                                              ; preds = %bb5
+  ret void
+
+bb11:                                             ; preds = %bb15, %bb8
+  %iter1.sroa.0.0 = phi i64 [ 0, %bb8 ], [ %_0.i1.i.i11, %bb15 ]
+  %packed.sroa.0.0 = phi i64 [ 0, %bb8 ], [ %2, %bb15 ]
+  %_0.i.i.i8 = icmp samesign ult i64 %iter1.sroa.0.0, 64
+  br i1 %_0.i.i.i8, label %bb13, label %bb14
+
+bb13:                                             ; preds = %bb11
+  %_30 = shl i64 %iter.sroa.0.0, 6
+  %_29 = or disjoint i64 %_30, %iter1.sroa.0.0
+  %_32 = icmp ult i64 %_29, %src.1
+  br i1 %_32, label %bb15, label %panic2
+
+bb14:                                             ; preds = %bb11
+  %_36 = icmp ult i64 %iter.sroa.0.0, %dst.1
+  br i1 %_36, label %bb16, label %panic
+
+bb16:                                             ; preds = %bb14
+  %0 = getelementptr inbounds nuw [8 x i8], ptr %dst.0, i64 %iter.sroa.0.0
+  store i64 %packed.sroa.0.0, ptr %0, align 8
+  br label %bb5
+
+panic:                                            ; preds = %bb14
+  tail call void @_ZN4core9panicking18panic_bounds_check17h9ae613628793029fE(i64 %iter.sroa.0.0, i64 %dst.1, ptr nonnull align 8 @alloc_f0b308cc4c9df2d44f594e69a671f9e6) #5
+  unreachable
+
+bb15:                                             ; preds = %bb13
+  %_0.i1.i.i11 = add nuw nsw i64 %iter1.sroa.0.0, 1
+  %1 = getelementptr inbounds nuw i8, ptr %src.0, i64 %_29
+  %_28 = load i8, ptr %1, align 1
+  %_27 = icmp ne i8 %_28, 0
+  %_26 = zext i1 %_27 to i64
+  %_25 = shl nuw i64 %_26, %iter1.sroa.0.0
+  %2 = or i64 %packed.sroa.0.0, %_25
+  br label %bb11
+
+panic2:                                           ; preds = %bb13
+  tail call void @_ZN4core9panicking18panic_bounds_check17h9ae613628793029fE(i64 %_29, i64 %src.1, ptr nonnull align 8 @alloc_f8b5cd2d0201c42fe0e3a94f0cc4a75a) #5
+  unreachable
+}
+*** IR Dump After SimplifyCFGPass on collect_bool ***
+; Function Attrs: nounwind nonlazybind uwtable
+define void @collect_bool(ptr nofree readonly align 1 captures(none) %src.0, i64 %src.1, ptr nofree writeonly align 8 captures(none) %dst.0, i64 %dst.1) unnamed_addr #2 {
+start:
+  %chunks4 = lshr i64 %src.1, 6
+  %_6.not = icmp ult i64 %dst.1, %chunks4
+  br i1 %_6.not, label %bb3, label %bb5
+
+bb3:                                              ; preds = %start
+  tail call void @_ZN4core9panicking5panic17h8bbbe005ba322b34E(ptr nonnull align 1 @alloc_6957e294861d181a0a9ce74760eb0966, i64 37, ptr nonnull align 8 @alloc_74638943da2922824d60629cbfb02232) #5
+  unreachable
+
+bb5:                                              ; preds = %start, %bb16
+  %iter.sroa.0.0 = phi i64 [ %_0.i1.i.i, %bb16 ], [ 0, %start ]
+  %_0.i.i.i = icmp ult i64 %iter.sroa.0.0, %chunks4
+  br i1 %_0.i.i.i, label %bb8, label %bb9
+
+bb8:                                              ; preds = %bb5
+  %_0.i1.i.i = add nuw i64 %iter.sroa.0.0, 1
+  br label %bb11
+
+bb9:                                              ; preds = %bb5
+  ret void
+
+bb11:                                             ; preds = %bb15, %bb8
+  %iter1.sroa.0.0 = phi i64 [ 0, %bb8 ], [ %_0.i1.i.i11, %bb15 ]
+  %packed.sroa.0.0 = phi i64 [ 0, %bb8 ], [ %2, %bb15 ]
+  %_0.i.i.i8 = icmp samesign ult i64 %iter1.sroa.0.0, 64
+  br i1 %_0.i.i.i8, label %bb13, label %bb14
+
+bb13:                                             ; preds = %bb11
+  %_30 = shl i64 %iter.sroa.0.0, 6
+  %_29 = or disjoint i64 %_30, %iter1.sroa.0.0
+  %_32 = icmp ult i64 %_29, %src.1
+  br i1 %_32, label %bb15, label %panic2
+
+bb14:                                             ; preds = %bb11
+  %_36 = icmp ult i64 %iter.sroa.0.0, %dst.1
+  br i1 %_36, label %bb16, label %panic
+
+bb16:                                             ; preds = %bb14
+  %0 = getelementptr inbounds nuw [8 x i8], ptr %dst.0, i64 %iter.sroa.0.0
+  store i64 %packed.sroa.0.0, ptr %0, align 8
+  br label %bb5
+
+panic:                                            ; preds = %bb14
+  tail call void @_ZN4core9panicking18panic_bounds_check17h9ae613628793029fE(i64 %iter.sroa.0.0, i64 %dst.1, ptr nonnull align 8 @alloc_f0b308cc4c9df2d44f594e69a671f9e6) #5
+  unreachable
+
+bb15:                                             ; preds = %bb13
+  %_0.i1.i.i11 = add nuw nsw i64 %iter1.sroa.0.0, 1
+  %1 = getelementptr inbounds nuw i8, ptr %src.0, i64 %_29
+  %_28 = load i8, ptr %1, align 1
+  %_27 = icmp ne i8 %_28, 0
+  %_26 = zext i1 %_27 to i64
+  %_25 = shl nuw i64 %_26, %iter1.sroa.0.0
+  %2 = or i64 %packed.sroa.0.0, %_25
+  br label %bb11
+
+panic2:                                           ; preds = %bb13
+  tail call void @_ZN4core9panicking18panic_bounds_check17h9ae613628793029fE(i64 %_29, i64 %src.1, ptr nonnull align 8 @alloc_f8b5cd2d0201c42fe0e3a94f0cc4a75a) #5
+  unreachable
+}
+*** IR Dump After ReassociatePass on collect_bool ***
+; Function Attrs: nounwind nonlazybind uwtable
+define void @collect_bool(ptr nofree readonly align 1 captures(none) %src.0, i64 %src.1, ptr nofree writeonly align 8 captures(none) %dst.0, i64 %dst.1) unnamed_addr #2 {
+start:
+  %chunks4 = lshr i64 %src.1, 6
+  %_6.not = icmp ult i64 %dst.1, %chunks4
+  br i1 %_6.not, label %bb3, label %bb5
+
+bb3:                                              ; preds = %start
+  tail call void @_ZN4core9panicking5panic17h8bbbe005ba322b34E(ptr nonnull align 1 @alloc_6957e294861d181a0a9ce74760eb0966, i64 37, ptr nonnull align 8 @alloc_74638943da2922824d60629cbfb02232) #5
+  unreachable
+
+bb5:                                              ; preds = %start, %bb16
+  %iter.sroa.0.0 = phi i64 [ %_0.i1.i.i, %bb16 ], [ 0, %start ]
+  %_0.i.i.i = icmp ult i64 %iter.sroa.0.0, %chunks4
+  br i1 %_0.i.i.i, label %bb8, label %bb9
+
+bb8:                                              ; preds = %bb5
+  %_0.i1.i.i = add nuw i64 %iter.sroa.0.0, 1
+  br label %bb11
+
+bb9:                                              ; preds = %bb5
+  ret void
+
+bb11:                                             ; preds = %bb15, %bb8
+  %iter1.sroa.0.0 = phi i64 [ 0, %bb8 ], [ %_0.i1.i.i11, %bb15 ]
+  %packed.sroa.0.0 = phi i64 [ 0, %bb8 ], [ %2, %bb15 ]
+  %_0.i.i.i8 = icmp samesign ult i64 %iter1.sroa.0.0, 64
+  br i1 %_0.i.i.i8, label %bb13, label %bb14
+
+bb13:                                             ; preds = %bb11
+  %_30 = shl i64 %iter.sroa.0.0, 6
+  %_29 = add nuw nsw i64 %iter1.sroa.0.0, %_30
+  %_32 = icmp ult i64 %_29, %src.1
+  br i1 %_32, label %bb15, label %panic2
+
+bb14:                                             ; preds = %bb11
+  %_36 = icmp ult i64 %iter.sroa.0.0, %dst.1
+  br i1 %_36, label %bb16, label %panic
+
+bb16:                                             ; preds = %bb14
+  %0 = getelementptr inbounds nuw [8 x i8], ptr %dst.0, i64 %iter.sroa.0.0
+  store i64 %packed.sroa.0.0, ptr %0, align 8
+  br label %bb5
+
+panic:                                            ; preds = %bb14
+  tail call void @_ZN4core9panicking18panic_bounds_check17h9ae613628793029fE(i64 %iter.sroa.0.0, i64 %dst.1, ptr nonnull align 8 @alloc_f0b308cc4c9df2d44f594e69a671f9e6) #5
+  unreachable
+
+bb15:                                             ; preds = %bb13
+  %_0.i1.i.i11 = add nuw nsw i64 %iter1.sroa.0.0, 1
+  %1 = getelementptr inbounds nuw i8, ptr %src.0, i64 %_29
+  %_28 = load i8, ptr %1, align 1
+  %_27 = icmp ne i8 %_28, 0
+  %_26 = zext i1 %_27 to i64
+  %_25 = shl nuw i64 %_26, %iter1.sroa.0.0
+  %2 = or i64 %_25, %packed.sroa.0.0
+  br label %bb11
+
+panic2:                                           ; preds = %bb13
+  tail call void @_ZN4core9panicking18panic_bounds_check17h9ae613628793029fE(i64 %_29, i64 %src.1, ptr nonnull align 8 @alloc_f8b5cd2d0201c42fe0e3a94f0cc4a75a) #5
+  unreachable
+}
+*** IR Dump After ConstraintEliminationPass on collect_bool ***
+; Function Attrs: nounwind nonlazybind uwtable
+define void @collect_bool(ptr nofree readonly align 1 captures(none) %src.0, i64 %src.1, ptr nofree writeonly align 8 captures(none) %dst.0, i64 %dst.1) unnamed_addr #2 {
+start:
+  %chunks4 = lshr i64 %src.1, 6
+  %_6.not = icmp ult i64 %dst.1, %chunks4
+  br i1 %_6.not, label %bb3, label %bb5
+
+bb3:                                              ; preds = %start
+  tail call void @_ZN4core9panicking5panic17h8bbbe005ba322b34E(ptr nonnull align 1 @alloc_6957e294861d181a0a9ce74760eb0966, i64 37, ptr nonnull align 8 @alloc_74638943da2922824d60629cbfb02232) #5
+  unreachable
+
+bb5:                                              ; preds = %start, %bb16
+  %iter.sroa.0.0 = phi i64 [ %_0.i1.i.i, %bb16 ], [ 0, %start ]
+  %_0.i.i.i = icmp ult i64 %iter.sroa.0.0, %chunks4
+  br i1 %_0.i.i.i, label %bb8, label %bb9
+
+bb8:                                              ; preds = %bb5
+  %_0.i1.i.i = add nuw i64 %iter.sroa.0.0, 1
+  br label %bb11
+
+bb9:                                              ; preds = %bb5
+  ret void
+
+bb11:                                             ; preds = %bb15, %bb8
+  %iter1.sroa.0.0 = phi i64 [ 0, %bb8 ], [ %_0.i1.i.i11, %bb15 ]
+  %packed.sroa.0.0 = phi i64 [ 0, %bb8 ], [ %2, %bb15 ]
+  %_0.i.i.i8 = icmp samesign ult i64 %iter1.sroa.0.0, 64
+  br i1 %_0.i.i.i8, label %bb13, label %bb14
+
+bb13:                                             ; preds = %bb11
+  %_30 = shl i64 %iter.sroa.0.0, 6
+  %_29 = add nuw nsw i64 %iter1.sroa.0.0, %_30
+  %_32 = icmp ult i64 %_29, %src.1
+  br i1 %_32, label %bb15, label %panic2
+
+bb14:                                             ; preds = %bb11
+  br i1 true, label %bb16, label %panic
+
+bb16:                                             ; preds = %bb14
+  %0 = getelementptr inbounds nuw [8 x i8], ptr %dst.0, i64 %iter.sroa.0.0
+  store i64 %packed.sroa.0.0, ptr %0, align 8
+  br label %bb5
+
+panic:                                            ; preds = %bb14
+  tail call void @_ZN4core9panicking18panic_bounds_check17h9ae613628793029fE(i64 %iter.sroa.0.0, i64 %dst.1, ptr nonnull align 8 @alloc_f0b308cc4c9df2d44f594e69a671f9e6) #5
+  unreachable
+
+bb15:                                             ; preds = %bb13
+  %_0.i1.i.i11 = add nuw nsw i64 %iter1.sroa.0.0, 1
+  %1 = getelementptr inbounds nuw i8, ptr %src.0, i64 %_29
+  %_28 = load i8, ptr %1, align 1
+  %_27 = icmp ne i8 %_28, 0
+  %_26 = zext i1 %_27 to i64
+  %_25 = shl nuw i64 %_26, %iter1.sroa.0.0
+  %2 = or i64 %_25, %packed.sroa.0.0
+  br label %bb11
+
+panic2:                                           ; preds = %bb13
+  tail call void @_ZN4core9panicking18panic_bounds_check17h9ae613628793029fE(i64 %_29, i64 %src.1, ptr nonnull align 8 @alloc_f8b5cd2d0201c42fe0e3a94f0cc4a75a) #5
+  unreachable
+}
+*** IR Dump After LoopSimplifyPass on collect_bool ***
+; Function Attrs: nounwind nonlazybind uwtable
+define void @collect_bool(ptr nofree readonly align 1 captures(none) %src.0, i64 %src.1, ptr nofree writeonly align 8 captures(none) %dst.0, i64 %dst.1) unnamed_addr #2 {
+start:
+  %chunks4 = lshr i64 %src.1, 6
+  %_6.not = icmp ult i64 %dst.1, %chunks4
+  br i1 %_6.not, label %bb3, label %bb5.preheader
+
+bb5.preheader:                                    ; preds = %start
+  br label %bb5
+
+bb3:                                              ; preds = %start
+  tail call void @_ZN4core9panicking5panic17h8bbbe005ba322b34E(ptr nonnull align 1 @alloc_6957e294861d181a0a9ce74760eb0966, i64 37, ptr nonnull align 8 @alloc_74638943da2922824d60629cbfb02232) #5
+  unreachable
+
+bb5:                                              ; preds = %bb5.preheader, %bb16
+  %iter.sroa.0.0 = phi i64 [ %_0.i1.i.i, %bb16 ], [ 0, %bb5.preheader ]
+  %_0.i.i.i = icmp ult i64 %iter.sroa.0.0, %chunks4
+  br i1 %_0.i.i.i, label %bb8, label %bb9
+
+bb8:                                              ; preds = %bb5
+  %_0.i1.i.i = add nuw i64 %iter.sroa.0.0, 1
+  br label %bb11
+
+bb9:                                              ; preds = %bb5
+  ret void
+
+bb11:                                             ; preds = %bb15, %bb8
+  %iter1.sroa.0.0 = phi i64 [ 0, %bb8 ], [ %_0.i1.i.i11, %bb15 ]
+  %packed.sroa.0.0 = phi i64 [ 0, %bb8 ], [ %2, %bb15 ]
+  %_0.i.i.i8 = icmp samesign ult i64 %iter1.sroa.0.0, 64
+  br i1 %_0.i.i.i8, label %bb13, label %bb14
+
+bb13:                                             ; preds = %bb11
+  %_30 = shl i64 %iter.sroa.0.0, 6
+  %_29 = add nuw nsw i64 %iter1.sroa.0.0, %_30
+  %_32 = icmp ult i64 %_29, %src.1
+  br i1 %_32, label %bb15, label %panic2
+
+bb14:                                             ; preds = %bb11
+  br i1 true, label %bb16, label %panic
+
+bb16:                                             ; preds = %bb14
+  %0 = getelementptr inbounds nuw [8 x i8], ptr %dst.0, i64 %iter.sroa.0.0
+  store i64 %packed.sroa.0.0, ptr %0, align 8
+  br label %bb5
+
+panic:                                            ; preds = %bb14
+  tail call void @_ZN4core9panicking18panic_bounds_check17h9ae613628793029fE(i64 %iter.sroa.0.0, i64 %dst.1, ptr nonnull align 8 @alloc_f0b308cc4c9df2d44f594e69a671f9e6) #5
+  unreachable
+
+bb15:                                             ; preds = %bb13
+  %_0.i1.i.i11 = add nuw nsw i64 %iter1.sroa.0.0, 1
+  %1 = getelementptr inbounds nuw i8, ptr %src.0, i64 %_29
+  %_28 = load i8, ptr %1, align 1
+  %_27 = icmp ne i8 %_28, 0
+  %_26 = zext i1 %_27 to i64
+  %_25 = shl nuw i64 %_26, %iter1.sroa.0.0
+  %2 = or i64 %_25, %packed.sroa.0.0
+  br label %bb11
+
+panic2:                                           ; preds = %bb13
+  tail call void @_ZN4core9panicking18panic_bounds_check17h9ae613628793029fE(i64 %_29, i64 %src.1, ptr nonnull align 8 @alloc_f8b5cd2d0201c42fe0e3a94f0cc4a75a) #5
+  unreachable
+}
+*** IR Dump After LCSSAPass on collect_bool ***
+; Function Attrs: nounwind nonlazybind uwtable
+define void @collect_bool(ptr nofree readonly align 1 captures(none) %src.0, i64 %src.1, ptr nofree writeonly align 8 captures(none) %dst.0, i64 %dst.1) unnamed_addr #2 {
+start:
+  %chunks4 = lshr i64 %src.1, 6
+  %_6.not = icmp ult i64 %dst.1, %chunks4
+  br i1 %_6.not, label %bb3, label %bb5.preheader
+
+bb5.preheader:                                    ; preds = %start
+  br label %bb5
+
+bb3:                                              ; preds = %start
+  tail call void @_ZN4core9panicking5panic17h8bbbe005ba322b34E(ptr nonnull align 1 @alloc_6957e294861d181a0a9ce74760eb0966, i64 37, ptr nonnull align 8 @alloc_74638943da2922824d60629cbfb02232) #5
+  unreachable
+
+bb5:                                              ; preds = %bb5.preheader, %bb16
+  %iter.sroa.0.0 = phi i64 [ %_0.i1.i.i, %bb16 ], [ 0, %bb5.preheader ]
+  %_0.i.i.i = icmp ult i64 %iter.sroa.0.0, %chunks4
+  br i1 %_0.i.i.i, label %bb8, label %bb9
+
+bb8:                                              ; preds = %bb5
+  %_0.i1.i.i = add nuw i64 %iter.sroa.0.0, 1
+  br label %bb11
+
+bb9:                                              ; preds = %bb5
+  ret void
+
+bb11:                                             ; preds = %bb15, %bb8
+  %iter1.sroa.0.0 = phi i64 [ 0, %bb8 ], [ %_0.i1.i.i11, %bb15 ]
+  %packed.sroa.0.0 = phi i64 [ 0, %bb8 ], [ %2, %bb15 ]
+  %_0.i.i.i8 = icmp samesign ult i64 %iter1.sroa.0.0, 64
+  br i1 %_0.i.i.i8, label %bb13, label %bb14
+
+bb13:                                             ; preds = %bb11
+  %_30 = shl i64 %iter.sroa.0.0, 6
+  %_29 = add nuw nsw i64 %iter1.sroa.0.0, %_30
+  %_32 = icmp ult i64 %_29, %src.1
+  br i1 %_32, label %bb15, label %panic2
+
+bb14:                                             ; preds = %bb11
+  %packed.sroa.0.0.lcssa = phi i64 [ %packed.sroa.0.0, %bb11 ]
+  br i1 true, label %bb16, label %panic
+
+bb16:                                             ; preds = %bb14
+  %0 = getelementptr inbounds nuw [8 x i8], ptr %dst.0, i64 %iter.sroa.0.0
+  store i64 %packed.sroa.0.0.lcssa, ptr %0, align 8
+  br label %bb5
+
+panic:                                            ; preds = %bb14
+  %iter.sroa.0.0.lcssa20 = phi i64 [ %iter.sroa.0.0, %bb14 ]
+  tail call void @_ZN4core9panicking18panic_bounds_check17h9ae613628793029fE(i64 %iter.sroa.0.0.lcssa20, i64 %dst.1, ptr nonnull align 8 @alloc_f0b308cc4c9df2d44f594e69a671f9e6) #5
+  unreachable
+
+bb15:                                             ; preds = %bb13
+  %_0.i1.i.i11 = add nuw nsw i64 %iter1.sroa.0.0, 1
+  %1 = getelementptr inbounds nuw i8, ptr %src.0, i64 %_29
+  %_28 = load i8, ptr %1, align 1
+  %_27 = icmp ne i8 %_28, 0
+  %_26 = zext i1 %_27 to i64
+  %_25 = shl nuw i64 %_26, %iter1.sroa.0.0
+  %2 = or i64 %_25, %packed.sroa.0.0
+  br label %bb11
+
+panic2:                                           ; preds = %bb13
+  %_29.lcssa = phi i64 [ %_29, %bb13 ]
+  tail call void @_ZN4core9panicking18panic_bounds_check17h9ae613628793029fE(i64 %_29.lcssa, i64 %src.1, ptr nonnull align 8 @alloc_f8b5cd2d0201c42fe0e3a94f0cc4a75a) #5
+  unreachable
+}
+*** IR Dump After LICMPass on loop %bb11 in function collect_bool ***
+
+; Preheader:
+bb8:                                              ; preds = %bb5
+  %_0.i1.i.i = add nuw i64 %iter.sroa.0.0, 1
+  %_30 = shl i64 %iter.sroa.0.0, 6
+  br label %bb11
+
+; Loop:
+bb11:                                             ; preds = %bb15, %bb8
+  %iter1.sroa.0.0 = phi i64 [ 0, %bb8 ], [ %_0.i1.i.i11, %bb15 ]
+  %packed.sroa.0.0 = phi i64 [ 0, %bb8 ], [ %2, %bb15 ]
+  %_0.i.i.i8 = icmp samesign ult i64 %iter1.sroa.0.0, 64
+  br i1 %_0.i.i.i8, label %bb13, label %bb14
+
+bb13:                                             ; preds = %bb11
+  %_29 = add nuw nsw i64 %iter1.sroa.0.0, %_30
+  %_32 = icmp ult i64 %_29, %src.1
+  br i1 %_32, label %bb15, label %panic2
+
+bb15:                                             ; preds = %bb13
+  %_0.i1.i.i11 = add nuw nsw i64 %iter1.sroa.0.0, 1
+  %1 = getelementptr inbounds nuw i8, ptr %src.0, i64 %_29
+  %_28 = load i8, ptr %1, align 1
+  %_27 = icmp ne i8 %_28, 0
+  %_26 = zext i1 %_27 to i64
+  %_25 = shl nuw i64 %_26, %iter1.sroa.0.0
+  %2 = or i64 %_25, %packed.sroa.0.0
+  br label %bb11
+
+; Exit blocks
+bb14:                                             ; preds = %bb11
+  %packed.sroa.0.0.lcssa = phi i64 [ %packed.sroa.0.0, %bb11 ]
+  br i1 true, label %bb16, label %panic
+
+panic2:                                           ; preds = %bb13
+  %_29.lcssa = phi i64 [ %_29, %bb13 ]
+  tail call void @_ZN4core9panicking18panic_bounds_check17h9ae613628793029fE(i64 %_29.lcssa, i64 %src.1, ptr nonnull align 8 @alloc_f8b5cd2d0201c42fe0e3a94f0cc4a75a) #5
+  unreachable
+*** IR Dump After LoopRotatePass on loop %bb13 in function collect_bool ***
+
+; Preheader:
+bb8:                                              ; preds = %bb5
+  %_0.i1.i.i = add nuw i64 %iter.sroa.0.0, 1
+  %_30 = shl i64 %iter.sroa.0.0, 6
+  br label %bb13
+
+; Loop:
+bb13:                                             ; preds = %bb8, %bb15
+  %packed.sroa.0.023 = phi i64 [ 0, %bb8 ], [ %2, %bb15 ]
+  %iter1.sroa.0.022 = phi i64 [ 0, %bb8 ], [ %_0.i1.i.i11, %bb15 ]
+  %_29 = add nuw nsw i64 %iter1.sroa.0.022, %_30
+  %_32 = icmp ult i64 %_29, %src.1
+  br i1 %_32, label %bb15, label %panic2
+
+bb15:                                             ; preds = %bb13
+  %_0.i1.i.i11 = add nuw nsw i64 %iter1.sroa.0.022, 1
+  %1 = getelementptr inbounds nuw i8, ptr %src.0, i64 %_29
+  %_28 = load i8, ptr %1, align 1
+  %_27 = icmp ne i8 %_28, 0
+  %_26 = zext i1 %_27 to i64
+  %_25 = shl nuw i64 %_26, %iter1.sroa.0.022
+  %2 = or i64 %_25, %packed.sroa.0.023
+  %_0.i.i.i8 = icmp samesign ult i64 %_0.i1.i.i11, 64
+  br i1 %_0.i.i.i8, label %bb13, label %bb14
+
+; Exit blocks
+panic2:                                           ; preds = %bb13
+  %_29.lcssa = phi i64 [ %_29, %bb13 ]
+  tail call void @_ZN4core9panicking18panic_bounds_check17h9ae613628793029fE(i64 %_29.lcssa, i64 %src.1, ptr nonnull align 8 @alloc_f8b5cd2d0201c42fe0e3a94f0cc4a75a) #5
+  unreachable
+
+bb14:                                             ; preds = %bb15
+  %packed.sroa.0.0.lcssa = phi i64 [ %2, %bb15 ]
+  br i1 true, label %bb16, label %panic
+*** IR Dump After LoopSimplifyCFGPass on loop %bb5 in function collect_bool ***
+
+; Preheader:
+bb5.preheader.split:                              ; preds = %bb5.preheader
+  br label %bb5
+
+; Loop:
+bb5:                                              ; preds = %bb5.preheader.split, %bb14
+  %iter.sroa.0.0 = phi i64 [ %_0.i1.i.i, %bb14 ], [ 0, %bb5.preheader.split ]
+  %_0.i.i.i = icmp ult i64 %iter.sroa.0.0, %chunks4
+  br i1 %_0.i.i.i, label %bb8, label %bb9
+
+bb8:                                              ; preds = %bb5
+  %_0.i1.i.i = add nuw i64 %iter.sroa.0.0, 1
+  %_30 = shl i64 %iter.sroa.0.0, 6
+  br label %bb13
+
+bb14:                                             ; preds = %bb15
+  %packed.sroa.0.0.lcssa = phi i64 [ %2, %bb15 ]
+  %0 = getelementptr inbounds nuw [8 x i8], ptr %dst.0, i64 %iter.sroa.0.0
+  store i64 %packed.sroa.0.0.lcssa, ptr %0, align 8
+  br label %bb5
+
+bb13:                                             ; preds = %bb8, %bb15
+  %packed.sroa.0.023 = phi i64 [ 0, %bb8 ], [ %2, %bb15 ]
+  %iter1.sroa.0.022 = phi i64 [ 0, %bb8 ], [ %_0.i1.i.i11, %bb15 ]
+  %_29 = add nuw nsw i64 %iter1.sroa.0.022, %_30
+  %_32 = icmp ult i64 %_29, %src.1
+  br i1 %_32, label %bb15, label %panic2
+
+bb15:                                             ; preds = %bb13
+  %_0.i1.i.i11 = add nuw nsw i64 %iter1.sroa.0.022, 1
+  %1 = getelementptr inbounds nuw i8, ptr %src.0, i64 %_29
+  %_28 = load i8, ptr %1, align 1
+  %_27 = icmp ne i8 %_28, 0
+  %_26 = zext i1 %_27 to i64
+  %_25 = shl nuw i64 %_26, %iter1.sroa.0.022
+  %2 = or i64 %_25, %packed.sroa.0.023
+  %_0.i.i.i8 = icmp samesign ult i64 %_0.i1.i.i11, 64
+  br i1 %_0.i.i.i8, label %bb13, label %bb14
+
+; Exit blocks
+bb9:                                              ; preds = %bb5
+  ret void
+
+panic2:                                           ; preds = %bb13
+  %_29.lcssa = phi i64 [ %_29, %bb13 ]
+  tail call void @_ZN4core9panicking18panic_bounds_check17h9ae613628793029fE(i64 %_29.lcssa, i64 %src.1, ptr nonnull align 8 @alloc_f8b5cd2d0201c42fe0e3a94f0cc4a75a) #5
+  unreachable
+*** IR Dump After LoopRotatePass on loop %bb8 in function collect_bool ***
+
+; Preheader:
+bb8.lr.ph:                                        ; preds = %bb5.preheader.split
+  br label %bb8
+
+; Loop:
+bb8:                                              ; preds = %bb8.lr.ph, %bb14
+  %iter.sroa.0.025 = phi i64 [ 0, %bb8.lr.ph ], [ %_0.i1.i.i, %bb14 ]
+  %_0.i1.i.i = add nuw i64 %iter.sroa.0.025, 1
+  %_30 = shl i64 %iter.sroa.0.025, 6
+  br label %bb13
+
+bb14:                                             ; preds = %bb15
+  %packed.sroa.0.0.lcssa = phi i64 [ %2, %bb15 ]
+  %0 = getelementptr inbounds nuw [8 x i8], ptr %dst.0, i64 %iter.sroa.0.025
+  store i64 %packed.sroa.0.0.lcssa, ptr %0, align 8
+  %_0.i.i.i = icmp ult i64 %_0.i1.i.i, %chunks4
+  br i1 %_0.i.i.i, label %bb8, label %bb5.bb9_crit_edge
+
+bb13:                                             ; preds = %bb8, %bb15
+  %packed.sroa.0.023 = phi i64 [ 0, %bb8 ], [ %2, %bb15 ]
+  %iter1.sroa.0.022 = phi i64 [ 0, %bb8 ], [ %_0.i1.i.i11, %bb15 ]
+  %_29 = add nuw nsw i64 %iter1.sroa.0.022, %_30
+  %_32 = icmp ult i64 %_29, %src.1
+  br i1 %_32, label %bb15, label %panic2
+
+bb15:                                             ; preds = %bb13
+  %_0.i1.i.i11 = add nuw nsw i64 %iter1.sroa.0.022, 1
+  %1 = getelementptr inbounds nuw i8, ptr %src.0, i64 %_29
+  %_28 = load i8, ptr %1, align 1
+  %_27 = icmp ne i8 %_28, 0
+  %_26 = zext i1 %_27 to i64
+  %_25 = shl nuw i64 %_26, %iter1.sroa.0.022
+  %2 = or i64 %_25, %packed.sroa.0.023
+  %_0.i.i.i8 = icmp samesign ult i64 %_0.i1.i.i11, 64
+  br i1 %_0.i.i.i8, label %bb13, label %bb14
+
+; Exit blocks
+bb5.bb9_crit_edge:                                ; preds = %bb14
+  br label %bb9
+
+panic2:                                           ; preds = %bb13
+  %_29.lcssa = phi i64 [ %_29, %bb13 ]
+  tail call void @_ZN4core9panicking18panic_bounds_check17h9ae613628793029fE(i64 %_29.lcssa, i64 %src.1, ptr nonnull align 8 @alloc_f8b5cd2d0201c42fe0e3a94f0cc4a75a) #5
+  unreachable
+*** IR Dump After SimplifyCFGPass on collect_bool ***
+; Function Attrs: nounwind nonlazybind uwtable
+define void @collect_bool(ptr nofree readonly align 1 captures(none) %src.0, i64 %src.1, ptr nofree writeonly align 8 captures(none) %dst.0, i64 %dst.1) unnamed_addr #2 {
+start:
+  %chunks4 = lshr i64 %src.1, 6
+  %_6.not = icmp ult i64 %dst.1, %chunks4
+  br i1 %_6.not, label %bb3, label %bb5.preheader.split
+
+bb5.preheader.split:                              ; preds = %start
+  %_0.i.i.i24 = icmp ult i64 0, %chunks4
+  br i1 %_0.i.i.i24, label %bb8, label %bb9
+
+bb3:                                              ; preds = %start
+  tail call void @_ZN4core9panicking5panic17h8bbbe005ba322b34E(ptr nonnull align 1 @alloc_6957e294861d181a0a9ce74760eb0966, i64 37, ptr nonnull align 8 @alloc_74638943da2922824d60629cbfb02232) #5
+  unreachable
+
+bb8:                                              ; preds = %bb5.preheader.split, %bb14
+  %iter.sroa.0.025 = phi i64 [ %_0.i1.i.i, %bb14 ], [ 0, %bb5.preheader.split ]
+  %_0.i1.i.i = add nuw i64 %iter.sroa.0.025, 1
+  %_30 = shl i64 %iter.sroa.0.025, 6
+  br label %bb13
+
+bb9:                                              ; preds = %bb14, %bb5.preheader.split
+  ret void
+
+bb13:                                             ; preds = %bb8, %bb15
+  %packed.sroa.0.023 = phi i64 [ 0, %bb8 ], [ %2, %bb15 ]
+  %iter1.sroa.0.022 = phi i64 [ 0, %bb8 ], [ %_0.i1.i.i11, %bb15 ]
+  %_29 = add nuw nsw i64 %iter1.sroa.0.022, %_30
+  %_32 = icmp ult i64 %_29, %src.1
+  br i1 %_32, label %bb15, label %panic2
+
+bb14:                                             ; preds = %bb15
+  %packed.sroa.0.0.lcssa = phi i64 [ %2, %bb15 ]
+  %0 = getelementptr inbounds nuw [8 x i8], ptr %dst.0, i64 %iter.sroa.0.025
+  store i64 %packed.sroa.0.0.lcssa, ptr %0, align 8
+  %_0.i.i.i = icmp ult i64 %_0.i1.i.i, %chunks4
+  br i1 %_0.i.i.i, label %bb8, label %bb9
+
+bb15:                                             ; preds = %bb13
+  %_0.i1.i.i11 = add nuw nsw i64 %iter1.sroa.0.022, 1
+  %1 = getelementptr inbounds nuw i8, ptr %src.0, i64 %_29
+  %_28 = load i8, ptr %1, align 1
+  %_27 = icmp ne i8 %_28, 0
+  %_26 = zext i1 %_27 to i64
+  %_25 = shl nuw i64 %_26, %iter1.sroa.0.022
+  %2 = or i64 %_25, %packed.sroa.0.023
+  %_0.i.i.i8 = icmp samesign ult i64 %_0.i1.i.i11, 64
+  br i1 %_0.i.i.i8, label %bb13, label %bb14
+
+panic2:                                           ; preds = %bb13
+  %_29.lcssa = phi i64 [ %_29, %bb13 ]
+  tail call void @_ZN4core9panicking18panic_bounds_check17h9ae613628793029fE(i64 %_29.lcssa, i64 %src.1, ptr nonnull align 8 @alloc_f8b5cd2d0201c42fe0e3a94f0cc4a75a) #5
+  unreachable
+}
+*** IR Dump After InstCombinePass on collect_bool ***
+; Function Attrs: nounwind nonlazybind uwtable
+define void @collect_bool(ptr nofree readonly align 1 captures(none) %src.0, i64 %src.1, ptr nofree writeonly align 8 captures(none) %dst.0, i64 %dst.1) unnamed_addr #2 {
+start:
+  %chunks4 = lshr i64 %src.1, 6
+  %_6.not = icmp ult i64 %dst.1, %chunks4
+  br i1 %_6.not, label %bb3, label %bb5.preheader.split
+
+bb5.preheader.split:                              ; preds = %start
+  %_0.i.i.i24.not = icmp eq i64 %chunks4, 0
+  br i1 %_0.i.i.i24.not, label %bb9, label %bb8
+
+bb3:                                              ; preds = %start
+  tail call void @_ZN4core9panicking5panic17h8bbbe005ba322b34E(ptr nonnull align 1 @alloc_6957e294861d181a0a9ce74760eb0966, i64 37, ptr nonnull align 8 @alloc_74638943da2922824d60629cbfb02232) #5
+  unreachable
+
+bb8:                                              ; preds = %bb5.preheader.split, %bb14
+  %iter.sroa.0.025 = phi i64 [ %_0.i1.i.i, %bb14 ], [ 0, %bb5.preheader.split ]
+  %_0.i1.i.i = add nuw i64 %iter.sroa.0.025, 1
+  %_30 = shl i64 %iter.sroa.0.025, 6
+  br label %bb13
+
+bb9:                                              ; preds = %bb14, %bb5.preheader.split
+  ret void
+
+bb13:                                             ; preds = %bb8, %bb15
+  %packed.sroa.0.023 = phi i64 [ 0, %bb8 ], [ %2, %bb15 ]
+  %iter1.sroa.0.022 = phi i64 [ 0, %bb8 ], [ %_0.i1.i.i11, %bb15 ]
+  %_29 = add nuw nsw i64 %iter1.sroa.0.022, %_30
+  %_32 = icmp ult i64 %_29, %src.1
+  br i1 %_32, label %bb15, label %panic2
+
+bb14:                                             ; preds = %bb15
+  %0 = getelementptr inbounds nuw [8 x i8], ptr %dst.0, i64 %iter.sroa.0.025
+  store i64 %2, ptr %0, align 8
+  %_0.i.i.i = icmp ult i64 %_0.i1.i.i, %chunks4
+  br i1 %_0.i.i.i, label %bb8, label %bb9
+
+bb15:                                             ; preds = %bb13
+  %_0.i1.i.i11 = add nuw nsw i64 %iter1.sroa.0.022, 1
+  %1 = getelementptr inbounds nuw i8, ptr %src.0, i64 %_29
+  %_28 = load i8, ptr %1, align 1
+  %_27 = icmp ne i8 %_28, 0
+  %_26 = zext i1 %_27 to i64
+  %_25 = shl nuw i64 %_26, %iter1.sroa.0.022
+  %2 = or i64 %_25, %packed.sroa.0.023
+  %_0.i.i.i8 = icmp samesign ult i64 %iter1.sroa.0.022, 63
+  br i1 %_0.i.i.i8, label %bb13, label %bb14
+
+panic2:                                           ; preds = %bb13
+  tail call void @_ZN4core9panicking18panic_bounds_check17h9ae613628793029fE(i64 %_29, i64 %src.1, ptr nonnull align 8 @alloc_f8b5cd2d0201c42fe0e3a94f0cc4a75a) #5
+  unreachable
+}
+*** IR Dump After LoopSimplifyPass on collect_bool ***
+; Function Attrs: nounwind nonlazybind uwtable
+define void @collect_bool(ptr nofree readonly align 1 captures(none) %src.0, i64 %src.1, ptr nofree writeonly align 8 captures(none) %dst.0, i64 %dst.1) unnamed_addr #2 {
+start:
+  %chunks4 = lshr i64 %src.1, 6
+  %_6.not = icmp ult i64 %dst.1, %chunks4
+  br i1 %_6.not, label %bb3, label %bb5.preheader.split
+
+bb5.preheader.split:                              ; preds = %start
+  %_0.i.i.i24.not = icmp eq i64 %chunks4, 0
+  br i1 %_0.i.i.i24.not, label %bb9, label %bb8.preheader
+
+bb8.preheader:                                    ; preds = %bb5.preheader.split
+  br label %bb8
+
+bb3:                                              ; preds = %start
+  tail call void @_ZN4core9panicking5panic17h8bbbe005ba322b34E(ptr nonnull align 1 @alloc_6957e294861d181a0a9ce74760eb0966, i64 37, ptr nonnull align 8 @alloc_74638943da2922824d60629cbfb02232) #5
+  unreachable
+
+bb8:                                              ; preds = %bb8.preheader, %bb14
+  %iter.sroa.0.025 = phi i64 [ %_0.i1.i.i, %bb14 ], [ 0, %bb8.preheader ]
+  %_0.i1.i.i = add nuw i64 %iter.sroa.0.025, 1
+  %_30 = shl i64 %iter.sroa.0.025, 6
+  br label %bb13
+
+bb9.loopexit:                                     ; preds = %bb14
+  br label %bb9
+
+bb9:                                              ; preds = %bb9.loopexit, %bb5.preheader.split
+  ret void
+
+bb13:                                             ; preds = %bb8, %bb15
+  %packed.sroa.0.023 = phi i64 [ 0, %bb8 ], [ %2, %bb15 ]
+  %iter1.sroa.0.022 = phi i64 [ 0, %bb8 ], [ %_0.i1.i.i11, %bb15 ]
+  %_29 = add nuw nsw i64 %iter1.sroa.0.022, %_30
+  %_32 = icmp ult i64 %_29, %src.1
+  br i1 %_32, label %bb15, label %panic2
+
+bb14:                                             ; preds = %bb15
+  %0 = getelementptr inbounds nuw [8 x i8], ptr %dst.0, i64 %iter.sroa.0.025
+  store i64 %2, ptr %0, align 8
+  %_0.i.i.i = icmp ult i64 %_0.i1.i.i, %chunks4
+  br i1 %_0.i.i.i, label %bb8, label %bb9.loopexit
+
+bb15:                                             ; preds = %bb13
+  %_0.i1.i.i11 = add nuw nsw i64 %iter1.sroa.0.022, 1
+  %1 = getelementptr inbounds nuw i8, ptr %src.0, i64 %_29
+  %_28 = load i8, ptr %1, align 1
+  %_27 = icmp ne i8 %_28, 0
+  %_26 = zext i1 %_27 to i64
+  %_25 = shl nuw i64 %_26, %iter1.sroa.0.022
+  %2 = or i64 %_25, %packed.sroa.0.023
+  %_0.i.i.i8 = icmp samesign ult i64 %iter1.sroa.0.022, 63
+  br i1 %_0.i.i.i8, label %bb13, label %bb14
+
+panic2:                                           ; preds = %bb13
+  tail call void @_ZN4core9panicking18panic_bounds_check17h9ae613628793029fE(i64 %_29, i64 %src.1, ptr nonnull align 8 @alloc_f8b5cd2d0201c42fe0e3a94f0cc4a75a) #5
+  unreachable
+}
+*** IR Dump After LCSSAPass on collect_bool ***
+; Function Attrs: nounwind nonlazybind uwtable
+define void @collect_bool(ptr nofree readonly align 1 captures(none) %src.0, i64 %src.1, ptr nofree writeonly align 8 captures(none) %dst.0, i64 %dst.1) unnamed_addr #2 {
+start:
+  %chunks4 = lshr i64 %src.1, 6
+  %_6.not = icmp ult i64 %dst.1, %chunks4
+  br i1 %_6.not, label %bb3, label %bb5.preheader.split
+
+bb5.preheader.split:                              ; preds = %start
+  %_0.i.i.i24.not = icmp eq i64 %chunks4, 0
+  br i1 %_0.i.i.i24.not, label %bb9, label %bb8.preheader
+
+bb8.preheader:                                    ; preds = %bb5.preheader.split
+  br label %bb8
+
+bb3:                                              ; preds = %start
+  tail call void @_ZN4core9panicking5panic17h8bbbe005ba322b34E(ptr nonnull align 1 @alloc_6957e294861d181a0a9ce74760eb0966, i64 37, ptr nonnull align 8 @alloc_74638943da2922824d60629cbfb02232) #5
+  unreachable
+
+bb8:                                              ; preds = %bb8.preheader, %bb14
+  %iter.sroa.0.025 = phi i64 [ %_0.i1.i.i, %bb14 ], [ 0, %bb8.preheader ]
+  %_0.i1.i.i = add nuw i64 %iter.sroa.0.025, 1
+  %_30 = shl i64 %iter.sroa.0.025, 6
+  br label %bb13
+
+bb9.loopexit:                                     ; preds = %bb14
+  br label %bb9
+
+bb9:                                              ; preds = %bb9.loopexit, %bb5.preheader.split
+  ret void
+
+bb13:                                             ; preds = %bb8, %bb15
+  %packed.sroa.0.023 = phi i64 [ 0, %bb8 ], [ %2, %bb15 ]
+  %iter1.sroa.0.022 = phi i64 [ 0, %bb8 ], [ %_0.i1.i.i11, %bb15 ]
+  %_29 = add nuw nsw i64 %iter1.sroa.0.022, %_30
+  %_32 = icmp ult i64 %_29, %src.1
+  br i1 %_32, label %bb15, label %panic2
+
+bb14:                                             ; preds = %bb15
+  %.lcssa = phi i64 [ %2, %bb15 ]
+  %0 = getelementptr inbounds nuw [8 x i8], ptr %dst.0, i64 %iter.sroa.0.025
+  store i64 %.lcssa, ptr %0, align 8
+  %_0.i.i.i = icmp ult i64 %_0.i1.i.i, %chunks4
+  br i1 %_0.i.i.i, label %bb8, label %bb9.loopexit
+
+bb15:                                             ; preds = %bb13
+  %_0.i1.i.i11 = add nuw nsw i64 %iter1.sroa.0.022, 1
+  %1 = getelementptr inbounds nuw i8, ptr %src.0, i64 %_29
+  %_28 = load i8, ptr %1, align 1
+  %_27 = icmp ne i8 %_28, 0
+  %_26 = zext i1 %_27 to i64
+  %_25 = shl nuw i64 %_26, %iter1.sroa.0.022
+  %2 = or i64 %_25, %packed.sroa.0.023
+  %_0.i.i.i8 = icmp samesign ult i64 %iter1.sroa.0.022, 63
+  br i1 %_0.i.i.i8, label %bb13, label %bb14
+
+panic2:                                           ; preds = %bb13
+  %_29.lcssa = phi i64 [ %_29, %bb13 ]
+  tail call void @_ZN4core9panicking18panic_bounds_check17h9ae613628793029fE(i64 %_29.lcssa, i64 %src.1, ptr nonnull align 8 @alloc_f8b5cd2d0201c42fe0e3a94f0cc4a75a) #5
+  unreachable
+}
+*** IR Dump After IndVarSimplifyPass on loop %bb13 in function collect_bool ***
+
+; Preheader:
+bb8:                                              ; preds = %bb8.preheader, %bb14
+  %iter.sroa.0.025 = phi i64 [ %_0.i1.i.i, %bb14 ], [ 0, %bb8.preheader ]
+  %_0.i1.i.i = add nuw i64 %iter.sroa.0.025, 1
+  %_30 = shl i64 %iter.sroa.0.025, 6
+  br label %bb13
+
+; Loop:
+bb13:                                             ; preds = %bb8, %bb15
+  %packed.sroa.0.023 = phi i64 [ 0, %bb8 ], [ %2, %bb15 ]
+  %iter1.sroa.0.022 = phi i64 [ 0, %bb8 ], [ %_0.i1.i.i11, %bb15 ]
+  %_29 = add nuw nsw i64 %iter1.sroa.0.022, %_30
+  %_32 = icmp ult i64 %_29, %src.1
+  br i1 %_32, label %bb15, label %panic2
+
+bb15:                                             ; preds = %bb13
+  %_0.i1.i.i11 = add nuw nsw i64 %iter1.sroa.0.022, 1
+  %1 = getelementptr inbounds nuw i8, ptr %src.0, i64 %_29
+  %_28 = load i8, ptr %1, align 1
+  %_27 = icmp ne i8 %_28, 0
+  %_26 = zext i1 %_27 to i64
+  %_25 = shl nuw i64 %_26, %iter1.sroa.0.022
+  %2 = or i64 %_25, %packed.sroa.0.023
+  %exitcond = icmp ne i64 %_0.i1.i.i11, 64
+  br i1 %exitcond, label %bb13, label %bb14
+
+; Exit blocks
+panic2:                                           ; preds = %bb13
+  %_29.lcssa = phi i64 [ %_29, %bb13 ]
+  tail call void @_ZN4core9panicking18panic_bounds_check17h9ae613628793029fE(i64 %_29.lcssa, i64 %src.1, ptr nonnull align 8 @alloc_f8b5cd2d0201c42fe0e3a94f0cc4a75a) #5
+  unreachable
+
+bb14:                                             ; preds = %bb15
+  %.lcssa = phi i64 [ %2, %bb15 ]
+  %0 = getelementptr inbounds nuw [8 x i8], ptr %dst.0, i64 %iter.sroa.0.025
+  store i64 %.lcssa, ptr %0, align 8
+  %_0.i.i.i = icmp ult i64 %_0.i1.i.i, %chunks4
+  br i1 %_0.i.i.i, label %bb8, label %bb9.loopexit
+*** IR Dump After IndVarSimplifyPass on loop %bb8 in function collect_bool ***
+
+; Preheader:
+bb8.preheader:                                    ; preds = %bb5.preheader.split
+  br label %bb8
+
+; Loop:
+bb8:                                              ; preds = %bb8.preheader, %bb14
+  %iter.sroa.0.025 = phi i64 [ %_0.i1.i.i, %bb14 ], [ 0, %bb8.preheader ]
+  %_0.i1.i.i = add nuw nsw i64 %iter.sroa.0.025, 1
+  %_30 = shl i64 %iter.sroa.0.025, 6
+  br label %bb13
+
+bb13:                                             ; preds = %bb8, %bb15
+  %packed.sroa.0.023 = phi i64 [ 0, %bb8 ], [ %2, %bb15 ]
+  %iter1.sroa.0.022 = phi i64 [ 0, %bb8 ], [ %_0.i1.i.i11, %bb15 ]
+  %_29 = add nuw nsw i64 %iter1.sroa.0.022, %_30
+  %_32 = icmp ult i64 %_29, %src.1
+  br i1 %_32, label %bb15, label %panic2
+
+bb15:                                             ; preds = %bb13
+  %_0.i1.i.i11 = add nuw nsw i64 %iter1.sroa.0.022, 1
+  %1 = getelementptr inbounds nuw i8, ptr %src.0, i64 %_29
+  %_28 = load i8, ptr %1, align 1
+  %_27 = icmp ne i8 %_28, 0
+  %_26 = zext i1 %_27 to i64
+  %_25 = shl nuw i64 %_26, %iter1.sroa.0.022
+  %2 = or i64 %_25, %packed.sroa.0.023
+  %exitcond = icmp ne i64 %_0.i1.i.i11, 64
+  br i1 %exitcond, label %bb13, label %bb14
+
+bb14:                                             ; preds = %bb15
+  %.lcssa = phi i64 [ %2, %bb15 ]
+  %0 = getelementptr inbounds nuw [8 x i8], ptr %dst.0, i64 %iter.sroa.0.025
+  store i64 %.lcssa, ptr %0, align 8
+  %exitcond27 = icmp ne i64 %_0.i1.i.i, %chunks4
+  br i1 %exitcond27, label %bb8, label %bb9.loopexit
+
+; Exit blocks
+panic2:                                           ; preds = %bb13
+  %_29.lcssa = phi i64 [ %_29, %bb13 ]
+  tail call void @_ZN4core9panicking18panic_bounds_check17h9ae613628793029fE(i64 %_29.lcssa, i64 %src.1, ptr nonnull align 8 @alloc_f8b5cd2d0201c42fe0e3a94f0cc4a75a) #5
+  unreachable
+
+bb9.loopexit:                                     ; preds = %bb14
+  br label %bb9
+*** IR Dump After GVNPass on collect_bool ***
+; Function Attrs: nounwind nonlazybind uwtable
+define void @collect_bool(ptr nofree readonly align 1 captures(none) %src.0, i64 %src.1, ptr nofree writeonly align 8 captures(none) %dst.0, i64 %dst.1) unnamed_addr #2 {
+start:
+  %chunks4 = lshr i64 %src.1, 6
+  %_6.not = icmp ult i64 %dst.1, %chunks4
+  br i1 %_6.not, label %bb3, label %bb5.preheader.split
+
+bb5.preheader.split:                              ; preds = %start
+  %_0.i.i.i24.not = icmp eq i64 %chunks4, 0
+  br i1 %_0.i.i.i24.not, label %bb9, label %bb8.preheader
+
+bb8.preheader:                                    ; preds = %bb5.preheader.split
+  br label %bb8
+
+bb3:                                              ; preds = %start
+  tail call void @_ZN4core9panicking5panic17h8bbbe005ba322b34E(ptr nonnull align 1 @alloc_6957e294861d181a0a9ce74760eb0966, i64 37, ptr nonnull align 8 @alloc_74638943da2922824d60629cbfb02232) #5
+  unreachable
+
+bb8:                                              ; preds = %bb8.preheader, %bb14
+  %iter.sroa.0.025 = phi i64 [ %_0.i1.i.i, %bb14 ], [ 0, %bb8.preheader ]
+  %_0.i1.i.i = add nuw nsw i64 %iter.sroa.0.025, 1
+  %_30 = shl i64 %iter.sroa.0.025, 6
+  br label %bb13
+
+bb9.loopexit:                                     ; preds = %bb14
+  br label %bb9
+
+bb9:                                              ; preds = %bb9.loopexit, %bb5.preheader.split
+  ret void
+
+bb13:                                             ; preds = %bb8, %bb15
+  %packed.sroa.0.023 = phi i64 [ 0, %bb8 ], [ %2, %bb15 ]
+  %iter1.sroa.0.022 = phi i64 [ 0, %bb8 ], [ %_0.i1.i.i11, %bb15 ]
+  %_29 = add nuw nsw i64 %iter1.sroa.0.022, %_30
+  %_32 = icmp ult i64 %_29, %src.1
+  br i1 %_32, label %bb15, label %panic2
+
+bb14:                                             ; preds = %bb15
+  %0 = getelementptr inbounds nuw [8 x i8], ptr %dst.0, i64 %iter.sroa.0.025
+  store i64 %2, ptr %0, align 8
+  %exitcond27 = icmp ne i64 %_0.i1.i.i, %chunks4
+  br i1 %exitcond27, label %bb8, label %bb9.loopexit
+
+bb15:                                             ; preds = %bb13
+  %_0.i1.i.i11 = add nuw nsw i64 %iter1.sroa.0.022, 1
+  %1 = getelementptr inbounds nuw i8, ptr %src.0, i64 %_29
+  %_28 = load i8, ptr %1, align 1
+  %_27 = icmp ne i8 %_28, 0
+  %_26 = zext i1 %_27 to i64
+  %_25 = shl nuw i64 %_26, %iter1.sroa.0.022
+  %2 = or i64 %_25, %packed.sroa.0.023
+  %exitcond = icmp ne i64 %_0.i1.i.i11, 64
+  br i1 %exitcond, label %bb13, label %bb14
+
+panic2:                                           ; preds = %bb13
+  tail call void @_ZN4core9panicking18panic_bounds_check17h9ae613628793029fE(i64 %_29, i64 %src.1, ptr nonnull align 8 @alloc_f8b5cd2d0201c42fe0e3a94f0cc4a75a) #5
+  unreachable
+}
+*** IR Dump After InstCombinePass on collect_bool ***
+; Function Attrs: nounwind nonlazybind uwtable
+define void @collect_bool(ptr nofree readonly align 1 captures(none) %src.0, i64 %src.1, ptr nofree writeonly align 8 captures(none) %dst.0, i64 %dst.1) unnamed_addr #2 {
+start:
+  %chunks4 = lshr i64 %src.1, 6
+  %_6.not = icmp ult i64 %dst.1, %chunks4
+  br i1 %_6.not, label %bb3, label %bb5.preheader.split
+
+bb5.preheader.split:                              ; preds = %start
+  %_0.i.i.i24.not = icmp eq i64 %chunks4, 0
+  br i1 %_0.i.i.i24.not, label %bb9, label %bb8.preheader
+
+bb8.preheader:                                    ; preds = %bb5.preheader.split
+  br label %bb8
+
+bb3:                                              ; preds = %start
+  tail call void @_ZN4core9panicking5panic17h8bbbe005ba322b34E(ptr nonnull align 1 @alloc_6957e294861d181a0a9ce74760eb0966, i64 37, ptr nonnull align 8 @alloc_74638943da2922824d60629cbfb02232) #5
+  unreachable
+
+bb8:                                              ; preds = %bb8.preheader, %bb14
+  %iter.sroa.0.025 = phi i64 [ %_0.i1.i.i, %bb14 ], [ 0, %bb8.preheader ]
+  %_0.i1.i.i = add nuw nsw i64 %iter.sroa.0.025, 1
+  %_30 = shl i64 %iter.sroa.0.025, 6
+  br label %bb13
+
+bb9.loopexit:                                     ; preds = %bb14
+  br label %bb9
+
+bb9:                                              ; preds = %bb9.loopexit, %bb5.preheader.split
+  ret void
+
+bb13:                                             ; preds = %bb8, %bb15
+  %packed.sroa.0.023 = phi i64 [ 0, %bb8 ], [ %2, %bb15 ]
+  %iter1.sroa.0.022 = phi i64 [ 0, %bb8 ], [ %_0.i1.i.i11, %bb15 ]
+  %_29 = add nuw nsw i64 %iter1.sroa.0.022, %_30
+  %_32 = icmp ult i64 %_29, %src.1
+  br i1 %_32, label %bb15, label %panic2
+
+bb14:                                             ; preds = %bb15
+  %0 = getelementptr inbounds nuw [8 x i8], ptr %dst.0, i64 %iter.sroa.0.025
+  store i64 %2, ptr %0, align 8
+  %exitcond27.not = icmp eq i64 %_0.i1.i.i, %chunks4
+  br i1 %exitcond27.not, label %bb9.loopexit, label %bb8
+
+bb15:                                             ; preds = %bb13
+  %_0.i1.i.i11 = add nuw nsw i64 %iter1.sroa.0.022, 1
+  %1 = getelementptr inbounds nuw i8, ptr %src.0, i64 %_29
+  %_28 = load i8, ptr %1, align 1
+  %_27 = icmp ne i8 %_28, 0
+  %_26 = zext i1 %_27 to i64
+  %_25 = shl nuw i64 %_26, %iter1.sroa.0.022
+  %2 = or i64 %_25, %packed.sroa.0.023
+  %exitcond.not = icmp eq i64 %_0.i1.i.i11, 64
+  br i1 %exitcond.not, label %bb14, label %bb13
+
+panic2:                                           ; preds = %bb13
+  tail call void @_ZN4core9panicking18panic_bounds_check17h9ae613628793029fE(i64 %_29, i64 %src.1, ptr nonnull align 8 @alloc_f8b5cd2d0201c42fe0e3a94f0cc4a75a) #5
+  unreachable
+}
+*** IR Dump After JumpThreadingPass on collect_bool ***
+; Function Attrs: nounwind nonlazybind uwtable
+define void @collect_bool(ptr nofree readonly align 1 captures(none) %src.0, i64 %src.1, ptr nofree writeonly align 8 captures(none) %dst.0, i64 %dst.1) unnamed_addr #2 {
+start:
+  %chunks4 = lshr i64 %src.1, 6
+  %_6.not = icmp ult i64 %dst.1, %chunks4
+  br i1 %_6.not, label %bb3, label %bb5.preheader.split
+
+bb5.preheader.split:                              ; preds = %start
+  %_0.i.i.i24.not = icmp eq i64 %chunks4, 0
+  br i1 %_0.i.i.i24.not, label %bb9, label %bb8.preheader
+
+bb8.preheader:                                    ; preds = %bb5.preheader.split
+  br label %bb8
+
+bb3:                                              ; preds = %start
+  tail call void @_ZN4core9panicking5panic17h8bbbe005ba322b34E(ptr nonnull align 1 @alloc_6957e294861d181a0a9ce74760eb0966, i64 37, ptr nonnull align 8 @alloc_74638943da2922824d60629cbfb02232) #5
+  unreachable
+
+bb8:                                              ; preds = %bb8.preheader, %bb14
+  %iter.sroa.0.025 = phi i64 [ %_0.i1.i.i, %bb14 ], [ 0, %bb8.preheader ]
+  %_0.i1.i.i = add nuw nsw i64 %iter.sroa.0.025, 1
+  %_30 = shl i64 %iter.sroa.0.025, 6
+  br label %bb13
+
+bb9:                                              ; preds = %bb14, %bb5.preheader.split
+  ret void
+
+bb13:                                             ; preds = %bb8, %bb15
+  %packed.sroa.0.023 = phi i64 [ 0, %bb8 ], [ %2, %bb15 ]
+  %iter1.sroa.0.022 = phi i64 [ 0, %bb8 ], [ %_0.i1.i.i11, %bb15 ]
+  %_29 = add nuw nsw i64 %iter1.sroa.0.022, %_30
+  %_32 = icmp ult i64 %_29, %src.1
+  br i1 %_32, label %bb15, label %panic2
+
+bb14:                                             ; preds = %bb15
+  %0 = getelementptr inbounds nuw [8 x i8], ptr %dst.0, i64 %iter.sroa.0.025
+  store i64 %2, ptr %0, align 8
+  %exitcond27.not = icmp eq i64 %_0.i1.i.i, %chunks4
+  br i1 %exitcond27.not, label %bb9, label %bb8
+
+bb15:                                             ; preds = %bb13
+  %_0.i1.i.i11 = add nuw nsw i64 %iter1.sroa.0.022, 1
+  %1 = getelementptr inbounds nuw i8, ptr %src.0, i64 %_29
+  %_28 = load i8, ptr %1, align 1
+  %_27 = icmp ne i8 %_28, 0
+  %_26 = zext i1 %_27 to i64
+  %_25 = shl nuw i64 %_26, %iter1.sroa.0.022
+  %2 = or i64 %_25, %packed.sroa.0.023
+  %exitcond.not = icmp eq i64 %_0.i1.i.i11, 64
+  br i1 %exitcond.not, label %bb14, label %bb13
+
+panic2:                                           ; preds = %bb13
+  tail call void @_ZN4core9panicking18panic_bounds_check17h9ae613628793029fE(i64 %_29, i64 %src.1, ptr nonnull align 8 @alloc_f8b5cd2d0201c42fe0e3a94f0cc4a75a) #5
+  unreachable
+}
+*** IR Dump After LoopSimplifyPass on collect_bool ***
+; Function Attrs: nounwind nonlazybind uwtable
+define void @collect_bool(ptr nofree readonly align 1 captures(none) %src.0, i64 %src.1, ptr nofree writeonly align 8 captures(none) %dst.0, i64 %dst.1) unnamed_addr #2 {
+start:
+  %chunks4 = lshr i64 %src.1, 6
+  %_6.not = icmp ult i64 %dst.1, %chunks4
+  br i1 %_6.not, label %bb3, label %bb5.preheader.split
+
+bb5.preheader.split:                              ; preds = %start
+  %_0.i.i.i24.not = icmp eq i64 %chunks4, 0
+  br i1 %_0.i.i.i24.not, label %bb9, label %bb8.preheader
+
+bb8.preheader:                                    ; preds = %bb5.preheader.split
+  br label %bb8
+
+bb3:                                              ; preds = %start
+  tail call void @_ZN4core9panicking5panic17h8bbbe005ba322b34E(ptr nonnull align 1 @alloc_6957e294861d181a0a9ce74760eb0966, i64 37, ptr nonnull align 8 @alloc_74638943da2922824d60629cbfb02232) #5
+  unreachable
+
+bb8:                                              ; preds = %bb8.preheader, %bb14
+  %iter.sroa.0.025 = phi i64 [ %_0.i1.i.i, %bb14 ], [ 0, %bb8.preheader ]
+  %_0.i1.i.i = add nuw nsw i64 %iter.sroa.0.025, 1
+  %_30 = shl i64 %iter.sroa.0.025, 6
+  br label %bb13
+
+bb9.loopexit:                                     ; preds = %bb14
+  br label %bb9
+
+bb9:                                              ; preds = %bb9.loopexit, %bb5.preheader.split
+  ret void
+
+bb13:                                             ; preds = %bb8, %bb15
+  %packed.sroa.0.023 = phi i64 [ 0, %bb8 ], [ %2, %bb15 ]
+  %iter1.sroa.0.022 = phi i64 [ 0, %bb8 ], [ %_0.i1.i.i11, %bb15 ]
+  %_29 = add nuw nsw i64 %iter1.sroa.0.022, %_30
+  %_32 = icmp ult i64 %_29, %src.1
+  br i1 %_32, label %bb15, label %panic2
+
+bb14:                                             ; preds = %bb15
+  %0 = getelementptr inbounds nuw [8 x i8], ptr %dst.0, i64 %iter.sroa.0.025
+  store i64 %2, ptr %0, align 8
+  %exitcond27.not = icmp eq i64 %_0.i1.i.i, %chunks4
+  br i1 %exitcond27.not, label %bb9.loopexit, label %bb8
+
+bb15:                                             ; preds = %bb13
+  %_0.i1.i.i11 = add nuw nsw i64 %iter1.sroa.0.022, 1
+  %1 = getelementptr inbounds nuw i8, ptr %src.0, i64 %_29
+  %_28 = load i8, ptr %1, align 1
+  %_27 = icmp ne i8 %_28, 0
+  %_26 = zext i1 %_27 to i64
+  %_25 = shl nuw i64 %_26, %iter1.sroa.0.022
+  %2 = or i64 %_25, %packed.sroa.0.023
+  %exitcond.not = icmp eq i64 %_0.i1.i.i11, 64
+  br i1 %exitcond.not, label %bb14, label %bb13
+
+panic2:                                           ; preds = %bb13
+  tail call void @_ZN4core9panicking18panic_bounds_check17h9ae613628793029fE(i64 %_29, i64 %src.1, ptr nonnull align 8 @alloc_f8b5cd2d0201c42fe0e3a94f0cc4a75a) #5
+  unreachable
+}
+*** IR Dump After LCSSAPass on collect_bool ***
+; Function Attrs: nounwind nonlazybind uwtable
+define void @collect_bool(ptr nofree readonly align 1 captures(none) %src.0, i64 %src.1, ptr nofree writeonly align 8 captures(none) %dst.0, i64 %dst.1) unnamed_addr #2 {
+start:
+  %chunks4 = lshr i64 %src.1, 6
+  %_6.not = icmp ult i64 %dst.1, %chunks4
+  br i1 %_6.not, label %bb3, label %bb5.preheader.split
+
+bb5.preheader.split:                              ; preds = %start
+  %_0.i.i.i24.not = icmp eq i64 %chunks4, 0
+  br i1 %_0.i.i.i24.not, label %bb9, label %bb8.preheader
+
+bb8.preheader:                                    ; preds = %bb5.preheader.split
+  br label %bb8
+
+bb3:                                              ; preds = %start
+  tail call void @_ZN4core9panicking5panic17h8bbbe005ba322b34E(ptr nonnull align 1 @alloc_6957e294861d181a0a9ce74760eb0966, i64 37, ptr nonnull align 8 @alloc_74638943da2922824d60629cbfb02232) #5
+  unreachable
+
+bb8:                                              ; preds = %bb8.preheader, %bb14
+  %iter.sroa.0.025 = phi i64 [ %_0.i1.i.i, %bb14 ], [ 0, %bb8.preheader ]
+  %_0.i1.i.i = add nuw nsw i64 %iter.sroa.0.025, 1
+  %_30 = shl i64 %iter.sroa.0.025, 6
+  br label %bb13
+
+bb9.loopexit:                                     ; preds = %bb14
+  br label %bb9
+
+bb9:                                              ; preds = %bb9.loopexit, %bb5.preheader.split
+  ret void
+
+bb13:                                             ; preds = %bb8, %bb15
+  %packed.sroa.0.023 = phi i64 [ 0, %bb8 ], [ %2, %bb15 ]
+  %iter1.sroa.0.022 = phi i64 [ 0, %bb8 ], [ %_0.i1.i.i11, %bb15 ]
+  %_29 = add nuw nsw i64 %iter1.sroa.0.022, %_30
+  %_32 = icmp ult i64 %_29, %src.1
+  br i1 %_32, label %bb15, label %panic2
+
+bb14:                                             ; preds = %bb15
+  %.lcssa = phi i64 [ %2, %bb15 ]
+  %0 = getelementptr inbounds nuw [8 x i8], ptr %dst.0, i64 %iter.sroa.0.025
+  store i64 %.lcssa, ptr %0, align 8
+  %exitcond27.not = icmp eq i64 %_0.i1.i.i, %chunks4
+  br i1 %exitcond27.not, label %bb9.loopexit, label %bb8
+
+bb15:                                             ; preds = %bb13
+  %_0.i1.i.i11 = add nuw nsw i64 %iter1.sroa.0.022, 1
+  %1 = getelementptr inbounds nuw i8, ptr %src.0, i64 %_29
+  %_28 = load i8, ptr %1, align 1
+  %_27 = icmp ne i8 %_28, 0
+  %_26 = zext i1 %_27 to i64
+  %_25 = shl nuw i64 %_26, %iter1.sroa.0.022
+  %2 = or i64 %_25, %packed.sroa.0.023
+  %exitcond.not = icmp eq i64 %_0.i1.i.i11, 64
+  br i1 %exitcond.not, label %bb14, label %bb13
+
+panic2:                                           ; preds = %bb13
+  %_29.lcssa = phi i64 [ %_29, %bb13 ]
+  tail call void @_ZN4core9panicking18panic_bounds_check17h9ae613628793029fE(i64 %_29.lcssa, i64 %src.1, ptr nonnull align 8 @alloc_f8b5cd2d0201c42fe0e3a94f0cc4a75a) #5
+  unreachable
+}
+*** IR Dump After SimplifyCFGPass on collect_bool ***
+; Function Attrs: nounwind nonlazybind uwtable
+define void @collect_bool(ptr nofree readonly align 1 captures(none) %src.0, i64 %src.1, ptr nofree writeonly align 8 captures(none) %dst.0, i64 %dst.1) unnamed_addr #2 {
+start:
+  %chunks4 = lshr i64 %src.1, 6
+  %_6.not = icmp ult i64 %dst.1, %chunks4
+  br i1 %_6.not, label %bb3, label %bb5.preheader.split
+
+bb5.preheader.split:                              ; preds = %start
+  %_0.i.i.i24.not = icmp eq i64 %chunks4, 0
+  br i1 %_0.i.i.i24.not, label %bb9, label %bb8
+
+bb3:                                              ; preds = %start
+  tail call void @_ZN4core9panicking5panic17h8bbbe005ba322b34E(ptr nonnull align 1 @alloc_6957e294861d181a0a9ce74760eb0966, i64 37, ptr nonnull align 8 @alloc_74638943da2922824d60629cbfb02232) #5
+  unreachable
+
+bb8:                                              ; preds = %bb5.preheader.split, %bb14
+  %iter.sroa.0.025 = phi i64 [ %_0.i1.i.i, %bb14 ], [ 0, %bb5.preheader.split ]
+  %_0.i1.i.i = add nuw nsw i64 %iter.sroa.0.025, 1
+  %_30 = shl i64 %iter.sroa.0.025, 6
+  br label %bb13
+
+bb9:                                              ; preds = %bb14, %bb5.preheader.split
+  ret void
+
+bb13:                                             ; preds = %bb8, %bb15
+  %packed.sroa.0.023 = phi i64 [ 0, %bb8 ], [ %2, %bb15 ]
+  %iter1.sroa.0.022 = phi i64 [ 0, %bb8 ], [ %_0.i1.i.i11, %bb15 ]
+  %_29 = add nuw nsw i64 %iter1.sroa.0.022, %_30
+  %_32 = icmp ult i64 %_29, %src.1
+  br i1 %_32, label %bb15, label %panic2
+
+bb14:                                             ; preds = %bb15
+  %.lcssa = phi i64 [ %2, %bb15 ]
+  %0 = getelementptr inbounds nuw [8 x i8], ptr %dst.0, i64 %iter.sroa.0.025
+  store i64 %.lcssa, ptr %0, align 8
+  %exitcond27.not = icmp eq i64 %_0.i1.i.i, %chunks4
+  br i1 %exitcond27.not, label %bb9, label %bb8
+
+bb15:                                             ; preds = %bb13
+  %_0.i1.i.i11 = add nuw nsw i64 %iter1.sroa.0.022, 1
+  %1 = getelementptr inbounds nuw i8, ptr %src.0, i64 %_29
+  %_28 = load i8, ptr %1, align 1
+  %_27 = icmp ne i8 %_28, 0
+  %_26 = zext i1 %_27 to i64
+  %_25 = shl nuw i64 %_26, %iter1.sroa.0.022
+  %2 = or i64 %_25, %packed.sroa.0.023
+  %exitcond.not = icmp eq i64 %_0.i1.i.i11, 64
+  br i1 %exitcond.not, label %bb14, label %bb13
+
+panic2:                                           ; preds = %bb13
+  %_29.lcssa = phi i64 [ %_29, %bb13 ]
+  tail call void @_ZN4core9panicking18panic_bounds_check17h9ae613628793029fE(i64 %_29.lcssa, i64 %src.1, ptr nonnull align 8 @alloc_f8b5cd2d0201c42fe0e3a94f0cc4a75a) #5
+  unreachable
+}
+*** IR Dump After InstCombinePass on collect_bool ***
+; Function Attrs: nounwind nonlazybind uwtable
+define void @collect_bool(ptr nofree readonly align 1 captures(none) %src.0, i64 %src.1, ptr nofree writeonly align 8 captures(none) %dst.0, i64 %dst.1) unnamed_addr #2 {
+start:
+  %chunks4 = lshr i64 %src.1, 6
+  %_6.not = icmp ult i64 %dst.1, %chunks4
+  br i1 %_6.not, label %bb3, label %bb5.preheader.split
+
+bb5.preheader.split:                              ; preds = %start
+  %_0.i.i.i24.not = icmp eq i64 %chunks4, 0
+  br i1 %_0.i.i.i24.not, label %bb9, label %bb8
+
+bb3:                                              ; preds = %start
+  tail call void @_ZN4core9panicking5panic17h8bbbe005ba322b34E(ptr nonnull align 1 @alloc_6957e294861d181a0a9ce74760eb0966, i64 37, ptr nonnull align 8 @alloc_74638943da2922824d60629cbfb02232) #5
+  unreachable
+
+bb8:                                              ; preds = %bb5.preheader.split, %bb14
+  %iter.sroa.0.025 = phi i64 [ %_0.i1.i.i, %bb14 ], [ 0, %bb5.preheader.split ]
+  %_0.i1.i.i = add nuw nsw i64 %iter.sroa.0.025, 1
+  %_30 = shl i64 %iter.sroa.0.025, 6
+  br label %bb13
+
+bb9:                                              ; preds = %bb14, %bb5.preheader.split
+  ret void
+
+bb13:                                             ; preds = %bb8, %bb15
+  %packed.sroa.0.023 = phi i64 [ 0, %bb8 ], [ %2, %bb15 ]
+  %iter1.sroa.0.022 = phi i64 [ 0, %bb8 ], [ %_0.i1.i.i11, %bb15 ]
+  %_29 = add nuw nsw i64 %iter1.sroa.0.022, %_30
+  %_32 = icmp ult i64 %_29, %src.1
+  br i1 %_32, label %bb15, label %panic2
+
+bb14:                                             ; preds = %bb15
+  %0 = getelementptr inbounds nuw [8 x i8], ptr %dst.0, i64 %iter.sroa.0.025
+  store i64 %2, ptr %0, align 8
+  %exitcond27.not = icmp eq i64 %_0.i1.i.i, %chunks4
+  br i1 %exitcond27.not, label %bb9, label %bb8
+
+bb15:                                             ; preds = %bb13
+  %_0.i1.i.i11 = add nuw nsw i64 %iter1.sroa.0.022, 1
+  %1 = getelementptr inbounds nuw i8, ptr %src.0, i64 %_29
+  %_28 = load i8, ptr %1, align 1
+  %_27 = icmp ne i8 %_28, 0
+  %_26 = zext i1 %_27 to i64
+  %_25 = shl nuw i64 %_26, %iter1.sroa.0.022
+  %2 = or i64 %_25, %packed.sroa.0.023
+  %exitcond.not = icmp eq i64 %_0.i1.i.i11, 64
+  br i1 %exitcond.not, label %bb14, label %bb13
+
+panic2:                                           ; preds = %bb13
+  tail call void @_ZN4core9panicking18panic_bounds_check17h9ae613628793029fE(i64 %_29, i64 %src.1, ptr nonnull align 8 @alloc_f8b5cd2d0201c42fe0e3a94f0cc4a75a) #5
+  unreachable
+}
+*** IR Dump After LoopSimplifyPass on collect_bool ***
+; Function Attrs: nounwind nonlazybind uwtable
+define void @collect_bool(ptr nofree readonly align 1 captures(none) %src.0, i64 %src.1, ptr nofree writeonly align 8 captures(none) %dst.0, i64 %dst.1) unnamed_addr #2 {
+start:
+  %chunks4 = lshr i64 %src.1, 6
+  %_6.not = icmp ult i64 %dst.1, %chunks4
+  br i1 %_6.not, label %bb3, label %bb5.preheader.split
+
+bb5.preheader.split:                              ; preds = %start
+  %_0.i.i.i24.not = icmp eq i64 %chunks4, 0
+  br i1 %_0.i.i.i24.not, label %bb9, label %bb8.preheader
+
+bb8.preheader:                                    ; preds = %bb5.preheader.split
+  br label %bb8
+
+bb3:                                              ; preds = %start
+  tail call void @_ZN4core9panicking5panic17h8bbbe005ba322b34E(ptr nonnull align 1 @alloc_6957e294861d181a0a9ce74760eb0966, i64 37, ptr nonnull align 8 @alloc_74638943da2922824d60629cbfb02232) #5
+  unreachable
+
+bb8:                                              ; preds = %bb8.preheader, %bb14
+  %iter.sroa.0.025 = phi i64 [ %_0.i1.i.i, %bb14 ], [ 0, %bb8.preheader ]
+  %_0.i1.i.i = add nuw nsw i64 %iter.sroa.0.025, 1
+  %_30 = shl i64 %iter.sroa.0.025, 6
+  br label %bb13
+
+bb9.loopexit:                                     ; preds = %bb14
+  br label %bb9
+
+bb9:                                              ; preds = %bb9.loopexit, %bb5.preheader.split
+  ret void
+
+bb13:                                             ; preds = %bb8, %bb15
+  %packed.sroa.0.023 = phi i64 [ 0, %bb8 ], [ %2, %bb15 ]
+  %iter1.sroa.0.022 = phi i64 [ 0, %bb8 ], [ %_0.i1.i.i11, %bb15 ]
+  %_29 = add nuw nsw i64 %iter1.sroa.0.022, %_30
+  %_32 = icmp ult i64 %_29, %src.1
+  br i1 %_32, label %bb15, label %panic2
+
+bb14:                                             ; preds = %bb15
+  %0 = getelementptr inbounds nuw [8 x i8], ptr %dst.0, i64 %iter.sroa.0.025
+  store i64 %2, ptr %0, align 8
+  %exitcond27.not = icmp eq i64 %_0.i1.i.i, %chunks4
+  br i1 %exitcond27.not, label %bb9.loopexit, label %bb8
+
+bb15:                                             ; preds = %bb13
+  %_0.i1.i.i11 = add nuw nsw i64 %iter1.sroa.0.022, 1
+  %1 = getelementptr inbounds nuw i8, ptr %src.0, i64 %_29
+  %_28 = load i8, ptr %1, align 1
+  %_27 = icmp ne i8 %_28, 0
+  %_26 = zext i1 %_27 to i64
+  %_25 = shl nuw i64 %_26, %iter1.sroa.0.022
+  %2 = or i64 %_25, %packed.sroa.0.023
+  %exitcond.not = icmp eq i64 %_0.i1.i.i11, 64
+  br i1 %exitcond.not, label %bb14, label %bb13
+
+panic2:                                           ; preds = %bb13
+  tail call void @_ZN4core9panicking18panic_bounds_check17h9ae613628793029fE(i64 %_29, i64 %src.1, ptr nonnull align 8 @alloc_f8b5cd2d0201c42fe0e3a94f0cc4a75a) #5
+  unreachable
+}
+*** IR Dump After LCSSAPass on collect_bool ***
+; Function Attrs: nounwind nonlazybind uwtable
+define void @collect_bool(ptr nofree readonly align 1 captures(none) %src.0, i64 %src.1, ptr nofree writeonly align 8 captures(none) %dst.0, i64 %dst.1) unnamed_addr #2 {
+start:
+  %chunks4 = lshr i64 %src.1, 6
+  %_6.not = icmp ult i64 %dst.1, %chunks4
+  br i1 %_6.not, label %bb3, label %bb5.preheader.split
+
+bb5.preheader.split:                              ; preds = %start
+  %_0.i.i.i24.not = icmp eq i64 %chunks4, 0
+  br i1 %_0.i.i.i24.not, label %bb9, label %bb8.preheader
+
+bb8.preheader:                                    ; preds = %bb5.preheader.split
+  br label %bb8
+
+bb3:                                              ; preds = %start
+  tail call void @_ZN4core9panicking5panic17h8bbbe005ba322b34E(ptr nonnull align 1 @alloc_6957e294861d181a0a9ce74760eb0966, i64 37, ptr nonnull align 8 @alloc_74638943da2922824d60629cbfb02232) #5
+  unreachable
+
+bb8:                                              ; preds = %bb8.preheader, %bb14
+  %iter.sroa.0.025 = phi i64 [ %_0.i1.i.i, %bb14 ], [ 0, %bb8.preheader ]
+  %_0.i1.i.i = add nuw nsw i64 %iter.sroa.0.025, 1
+  %_30 = shl i64 %iter.sroa.0.025, 6
+  br label %bb13
+
+bb9.loopexit:                                     ; preds = %bb14
+  br label %bb9
+
+bb9:                                              ; preds = %bb9.loopexit, %bb5.preheader.split
+  ret void
+
+bb13:                                             ; preds = %bb8, %bb15
+  %packed.sroa.0.023 = phi i64 [ 0, %bb8 ], [ %2, %bb15 ]
+  %iter1.sroa.0.022 = phi i64 [ 0, %bb8 ], [ %_0.i1.i.i11, %bb15 ]
+  %_29 = add nuw nsw i64 %iter1.sroa.0.022, %_30
+  %_32 = icmp ult i64 %_29, %src.1
+  br i1 %_32, label %bb15, label %panic2
+
+bb14:                                             ; preds = %bb15
+  %.lcssa = phi i64 [ %2, %bb15 ]
+  %0 = getelementptr inbounds nuw [8 x i8], ptr %dst.0, i64 %iter.sroa.0.025
+  store i64 %.lcssa, ptr %0, align 8
+  %exitcond27.not = icmp eq i64 %_0.i1.i.i, %chunks4
+  br i1 %exitcond27.not, label %bb9.loopexit, label %bb8
+
+bb15:                                             ; preds = %bb13
+  %_0.i1.i.i11 = add nuw nsw i64 %iter1.sroa.0.022, 1
+  %1 = getelementptr inbounds nuw i8, ptr %src.0, i64 %_29
+  %_28 = load i8, ptr %1, align 1
+  %_27 = icmp ne i8 %_28, 0
+  %_26 = zext i1 %_27 to i64
+  %_25 = shl nuw i64 %_26, %iter1.sroa.0.022
+  %2 = or i64 %_25, %packed.sroa.0.023
+  %exitcond.not = icmp eq i64 %_0.i1.i.i11, 64
+  br i1 %exitcond.not, label %bb14, label %bb13
+
+panic2:                                           ; preds = %bb13
+  %_29.lcssa = phi i64 [ %_29, %bb13 ]
+  tail call void @_ZN4core9panicking18panic_bounds_check17h9ae613628793029fE(i64 %_29.lcssa, i64 %src.1, ptr nonnull align 8 @alloc_f8b5cd2d0201c42fe0e3a94f0cc4a75a) #5
+  unreachable
+}
+*** IR Dump After LoopVectorizePass on collect_bool ***
+; Function Attrs: nounwind nonlazybind uwtable
+define void @collect_bool(ptr nofree readonly align 1 captures(none) %src.0, i64 %src.1, ptr nofree writeonly align 8 captures(none) %dst.0, i64 %dst.1) unnamed_addr #2 {
+start:
+  %chunks4 = lshr i64 %src.1, 6
+  %_6.not = icmp ult i64 %dst.1, %chunks4
+  br i1 %_6.not, label %bb3, label %bb5.preheader.split
+
+bb5.preheader.split:                              ; preds = %start
+  %_0.i.i.i24.not = icmp eq i64 %chunks4, 0
+  br i1 %_0.i.i.i24.not, label %bb9, label %bb8.preheader
+
+bb8.preheader:                                    ; preds = %bb5.preheader.split
+  br label %bb8
+
+bb3:                                              ; preds = %start
+  tail call void @_ZN4core9panicking5panic17h8bbbe005ba322b34E(ptr nonnull align 1 @alloc_6957e294861d181a0a9ce74760eb0966, i64 37, ptr nonnull align 8 @alloc_74638943da2922824d60629cbfb02232) #6
+  unreachable
+
+bb8:                                              ; preds = %bb8.preheader, %bb14
+  %iter.sroa.0.025 = phi i64 [ %_0.i1.i.i, %bb14 ], [ 0, %bb8.preheader ]
+  %0 = shl nuw i64 %iter.sroa.0.025, 6
+  %umax = call i64 @llvm.umax.i64(i64 %src.1, i64 %0)
+  %1 = mul i64 %iter.sroa.0.025, -64
+  %2 = add i64 %umax, %1
+  %umin = call i64 @llvm.umin.i64(i64 %2, i64 63)
+  %3 = add nuw nsw i64 %umin, 1
+  %_0.i1.i.i = add nuw nsw i64 %iter.sroa.0.025, 1
+  %_30 = shl i64 %iter.sroa.0.025, 6
+  %min.iters.check = icmp ule i64 %3, 4
+  br i1 %min.iters.check, label %scalar.ph, label %vector.ph
+
+vector.ph:                                        ; preds = %bb8
+  %n.mod.vf = urem i64 %3, 4
+  %4 = icmp eq i64 %n.mod.vf, 0
+  %5 = select i1 %4, i64 4, i64 %n.mod.vf
+  %n.vec = sub i64 %3, %5
+  br label %vector.body
+
+vector.body:                                      ; preds = %vector.body, %vector.ph
+  %index = phi i64 [ 0, %vector.ph ], [ %index.next, %vector.body ]
+  %vec.phi = phi <2 x i64> [ zeroinitializer, %vector.ph ], [ %15, %vector.body ]
+  %vec.phi30 = phi <2 x i64> [ zeroinitializer, %vector.ph ], [ %16, %vector.body ]
+  %vec.ind = phi <2 x i64> [ <i64 0, i64 1>, %vector.ph ], [ %vec.ind.next, %vector.body ]
+  %step.add = add nuw <2 x i64> %vec.ind, splat (i64 2)
+  %6 = add nuw nsw i64 %index, %_30
+  %7 = getelementptr inbounds nuw i8, ptr %src.0, i64 %6
+  %8 = getelementptr inbounds nuw i8, ptr %7, i64 2
+  %wide.load = load <2 x i8>, ptr %7, align 1
+  %wide.load31 = load <2 x i8>, ptr %8, align 1
+  %9 = icmp ne <2 x i8> %wide.load, zeroinitializer
+  %10 = icmp ne <2 x i8> %wide.load31, zeroinitializer
+  %11 = zext <2 x i1> %9 to <2 x i64>
+  %12 = zext <2 x i1> %10 to <2 x i64>
+  %13 = shl nuw <2 x i64> %11, %vec.ind
+  %14 = shl nuw <2 x i64> %12, %step.add
+  %15 = or <2 x i64> %13, %vec.phi
+  %16 = or <2 x i64> %14, %vec.phi30
+  %index.next = add nuw i64 %index, 4
+  %vec.ind.next = add nuw nsw <2 x i64> %step.add, splat (i64 2)
+  %17 = icmp eq i64 %index.next, %n.vec
+  br i1 %17, label %middle.block, label %vector.body, !llvm.loop !3
+
+middle.block:                                     ; preds = %vector.body
+  %bin.rdx = or <2 x i64> %16, %15
+  %18 = call i64 @llvm.vector.reduce.or.v2i64(<2 x i64> %bin.rdx)
+  br label %scalar.ph
+
+scalar.ph:                                        ; preds = %bb8, %middle.block
+  %bc.merge.rdx = phi i64 [ %18, %middle.block ], [ 0, %bb8 ]
+  %bc.resume.val = phi i64 [ %n.vec, %middle.block ], [ 0, %bb8 ]
+  br label %bb13
+
+bb9.loopexit:                                     ; preds = %bb14
+  br label %bb9
+
+bb9:                                              ; preds = %bb9.loopexit, %bb5.preheader.split
+  ret void
+
+bb13:                                             ; preds = %scalar.ph, %bb15
+  %packed.sroa.0.023 = phi i64 [ %bc.merge.rdx, %scalar.ph ], [ %21, %bb15 ]
+  %iter1.sroa.0.022 = phi i64 [ %bc.resume.val, %scalar.ph ], [ %_0.i1.i.i11, %bb15 ]
+  %_29 = add nuw nsw i64 %iter1.sroa.0.022, %_30
+  %_32 = icmp ult i64 %_29, %src.1
+  br i1 %_32, label %bb15, label %panic2
+
+bb14:                                             ; preds = %bb15
+  %.lcssa = phi i64 [ %21, %bb15 ]
+  %19 = getelementptr inbounds nuw [8 x i8], ptr %dst.0, i64 %iter.sroa.0.025
+  store i64 %.lcssa, ptr %19, align 8
+  %exitcond27.not = icmp eq i64 %_0.i1.i.i, %chunks4
+  br i1 %exitcond27.not, label %bb9.loopexit, label %bb8
+
+bb15:                                             ; preds = %bb13
+  %_0.i1.i.i11 = add nuw nsw i64 %iter1.sroa.0.022, 1
+  %20 = getelementptr inbounds nuw i8, ptr %src.0, i64 %_29
+  %_28 = load i8, ptr %20, align 1
+  %_27 = icmp ne i8 %_28, 0
+  %_26 = zext i1 %_27 to i64
+  %_25 = shl nuw i64 %_26, %iter1.sroa.0.022
+  %21 = or i64 %_25, %packed.sroa.0.023
+  %exitcond.not = icmp eq i64 %_0.i1.i.i11, 64
+  br i1 %exitcond.not, label %bb14, label %bb13, !llvm.loop !6
+
+panic2:                                           ; preds = %bb13
+  %_29.lcssa = phi i64 [ %_29, %bb13 ]
+  tail call void @_ZN4core9panicking18panic_bounds_check17h9ae613628793029fE(i64 %_29.lcssa, i64 %src.1, ptr nonnull align 8 @alloc_f8b5cd2d0201c42fe0e3a94f0cc4a75a) #6
+  unreachable
+}
+*** IR Dump After InstCombinePass on collect_bool ***
+; Function Attrs: nounwind nonlazybind uwtable
+define void @collect_bool(ptr nofree readonly align 1 captures(none) %src.0, i64 %src.1, ptr nofree writeonly align 8 captures(none) %dst.0, i64 %dst.1) unnamed_addr #2 {
+start:
+  %chunks4 = lshr i64 %src.1, 6
+  %_6.not = icmp ult i64 %dst.1, %chunks4
+  br i1 %_6.not, label %bb3, label %bb5.preheader.split
+
+bb5.preheader.split:                              ; preds = %start
+  %_0.i.i.i24.not = icmp eq i64 %chunks4, 0
+  br i1 %_0.i.i.i24.not, label %bb9, label %bb8.preheader
+
+bb8.preheader:                                    ; preds = %bb5.preheader.split
+  br label %bb8
+
+bb3:                                              ; preds = %start
+  tail call void @_ZN4core9panicking5panic17h8bbbe005ba322b34E(ptr nonnull align 1 @alloc_6957e294861d181a0a9ce74760eb0966, i64 37, ptr nonnull align 8 @alloc_74638943da2922824d60629cbfb02232) #6
+  unreachable
+
+bb8:                                              ; preds = %bb8.preheader, %bb14
+  %iter.sroa.0.025 = phi i64 [ %_0.i1.i.i, %bb14 ], [ 0, %bb8.preheader ]
+  %0 = shl nuw i64 %iter.sroa.0.025, 6
+  %umax = call i64 @llvm.umax.i64(i64 %src.1, i64 %0)
+  %1 = shl i64 %iter.sroa.0.025, 6
+  %2 = sub i64 %umax, %1
+  %_0.i1.i.i = add nuw nsw i64 %iter.sroa.0.025, 1
+  %_30 = shl i64 %iter.sroa.0.025, 6
+  %min.iters.check = icmp ult i64 %2, 4
+  br i1 %min.iters.check, label %scalar.ph, label %vector.ph
+
+vector.ph:                                        ; preds = %bb8
+  %umin = call i64 @llvm.umin.i64(i64 %2, i64 63)
+  %3 = add nuw nsw i64 %umin, 1
+  %n.mod.vf = and i64 %3, 3
+  %4 = icmp eq i64 %n.mod.vf, 0
+  %5 = select i1 %4, i64 4, i64 %n.mod.vf
+  %n.vec = sub nsw i64 %3, %5
+  br label %vector.body
+
+vector.body:                                      ; preds = %vector.body, %vector.ph
+  %index = phi i64 [ 0, %vector.ph ], [ %index.next, %vector.body ]
+  %vec.phi = phi <2 x i64> [ zeroinitializer, %vector.ph ], [ %15, %vector.body ]
+  %vec.phi30 = phi <2 x i64> [ zeroinitializer, %vector.ph ], [ %16, %vector.body ]
+  %vec.ind = phi <2 x i64> [ <i64 0, i64 1>, %vector.ph ], [ %vec.ind.next, %vector.body ]
+  %step.add = add nuw <2 x i64> %vec.ind, splat (i64 2)
+  %6 = getelementptr inbounds nuw i8, ptr %src.0, i64 %index
+  %7 = getelementptr inbounds nuw i8, ptr %6, i64 %_30
+  %8 = getelementptr inbounds nuw i8, ptr %7, i64 2
+  %wide.load = load <2 x i8>, ptr %7, align 1
+  %wide.load31 = load <2 x i8>, ptr %8, align 1
+  %9 = icmp ne <2 x i8> %wide.load, zeroinitializer
+  %10 = icmp ne <2 x i8> %wide.load31, zeroinitializer
+  %11 = zext <2 x i1> %9 to <2 x i64>
+  %12 = zext <2 x i1> %10 to <2 x i64>
+  %13 = shl nuw <2 x i64> %11, %vec.ind
+  %14 = shl nuw <2 x i64> %12, %step.add
+  %15 = or <2 x i64> %13, %vec.phi
+  %16 = or <2 x i64> %14, %vec.phi30
+  %index.next = add nuw i64 %index, 4
+  %vec.ind.next = add nuw <2 x i64> %vec.ind, splat (i64 4)
+  %17 = icmp eq i64 %index.next, %n.vec
+  br i1 %17, label %middle.block, label %vector.body, !llvm.loop !3
+
+middle.block:                                     ; preds = %vector.body
+  %bin.rdx = or <2 x i64> %16, %15
+  %18 = call i64 @llvm.vector.reduce.or.v2i64(<2 x i64> %bin.rdx)
+  br label %scalar.ph
+
+scalar.ph:                                        ; preds = %bb8, %middle.block
+  %bc.merge.rdx = phi i64 [ %18, %middle.block ], [ 0, %bb8 ]
+  %bc.resume.val = phi i64 [ %n.vec, %middle.block ], [ 0, %bb8 ]
+  br label %bb13
+
+bb9.loopexit:                                     ; preds = %bb14
+  br label %bb9
+
+bb9:                                              ; preds = %bb9.loopexit, %bb5.preheader.split
+  ret void
+
+bb13:                                             ; preds = %scalar.ph, %bb15
+  %packed.sroa.0.023 = phi i64 [ %bc.merge.rdx, %scalar.ph ], [ %21, %bb15 ]
+  %iter1.sroa.0.022 = phi i64 [ %bc.resume.val, %scalar.ph ], [ %_0.i1.i.i11, %bb15 ]
+  %_29 = add nuw nsw i64 %iter1.sroa.0.022, %_30
+  %_32 = icmp ult i64 %_29, %src.1
+  br i1 %_32, label %bb15, label %panic2
+
+bb14:                                             ; preds = %bb15
+  %19 = getelementptr inbounds nuw [8 x i8], ptr %dst.0, i64 %iter.sroa.0.025
+  store i64 %21, ptr %19, align 8
+  %exitcond27.not = icmp eq i64 %_0.i1.i.i, %chunks4
+  br i1 %exitcond27.not, label %bb9.loopexit, label %bb8
+
+bb15:                                             ; preds = %bb13
+  %_0.i1.i.i11 = add nuw nsw i64 %iter1.sroa.0.022, 1
+  %20 = getelementptr inbounds nuw i8, ptr %src.0, i64 %_29
+  %_28 = load i8, ptr %20, align 1
+  %_27 = icmp ne i8 %_28, 0
+  %_26 = zext i1 %_27 to i64
+  %_25 = shl nuw i64 %_26, %iter1.sroa.0.022
+  %21 = or i64 %_25, %packed.sroa.0.023
+  %exitcond.not = icmp eq i64 %_0.i1.i.i11, 64
+  br i1 %exitcond.not, label %bb14, label %bb13, !llvm.loop !6
+
+panic2:                                           ; preds = %bb13
+  tail call void @_ZN4core9panicking18panic_bounds_check17h9ae613628793029fE(i64 %_29, i64 %src.1, ptr nonnull align 8 @alloc_f8b5cd2d0201c42fe0e3a94f0cc4a75a) #6
+  unreachable
+}
+*** IR Dump After SimplifyCFGPass on collect_bool ***
+; Function Attrs: nounwind nonlazybind uwtable
+define void @collect_bool(ptr nofree readonly align 1 captures(none) %src.0, i64 %src.1, ptr nofree writeonly align 8 captures(none) %dst.0, i64 %dst.1) unnamed_addr #2 {
+start:
+  %chunks4 = lshr i64 %src.1, 6
+  %_6.not = icmp ult i64 %dst.1, %chunks4
+  br i1 %_6.not, label %bb3, label %bb5.preheader.split
+
+bb5.preheader.split:                              ; preds = %start
+  %_0.i.i.i24.not = icmp eq i64 %chunks4, 0
+  br i1 %_0.i.i.i24.not, label %bb9, label %bb8
+
+bb3:                                              ; preds = %start
+  tail call void @_ZN4core9panicking5panic17h8bbbe005ba322b34E(ptr nonnull align 1 @alloc_6957e294861d181a0a9ce74760eb0966, i64 37, ptr nonnull align 8 @alloc_74638943da2922824d60629cbfb02232) #6
+  unreachable
+
+bb8:                                              ; preds = %bb5.preheader.split, %bb14
+  %iter.sroa.0.025 = phi i64 [ %_0.i1.i.i, %bb14 ], [ 0, %bb5.preheader.split ]
+  %0 = shl nuw i64 %iter.sroa.0.025, 6
+  %umax = call i64 @llvm.umax.i64(i64 %src.1, i64 %0)
+  %1 = shl i64 %iter.sroa.0.025, 6
+  %2 = sub i64 %umax, %1
+  %_0.i1.i.i = add nuw nsw i64 %iter.sroa.0.025, 1
+  %_30 = shl i64 %iter.sroa.0.025, 6
+  %min.iters.check = icmp ult i64 %2, 4
+  br i1 %min.iters.check, label %bb13, label %vector.ph
+
+vector.ph:                                        ; preds = %bb8
+  %umin = call i64 @llvm.umin.i64(i64 %2, i64 63)
+  %3 = add nuw nsw i64 %umin, 1
+  %n.mod.vf = and i64 %3, 3
+  %4 = icmp eq i64 %n.mod.vf, 0
+  %5 = select i1 %4, i64 4, i64 %n.mod.vf
+  %n.vec = sub nsw i64 %3, %5
+  br label %vector.body
+
+vector.body:                                      ; preds = %vector.body, %vector.ph
+  %index = phi i64 [ 0, %vector.ph ], [ %index.next, %vector.body ]
+  %vec.phi = phi <2 x i64> [ zeroinitializer, %vector.ph ], [ %15, %vector.body ]
+  %vec.phi30 = phi <2 x i64> [ zeroinitializer, %vector.ph ], [ %16, %vector.body ]
+  %vec.ind = phi <2 x i64> [ <i64 0, i64 1>, %vector.ph ], [ %vec.ind.next, %vector.body ]
+  %step.add = add nuw <2 x i64> %vec.ind, splat (i64 2)
+  %6 = getelementptr inbounds nuw i8, ptr %src.0, i64 %index
+  %7 = getelementptr inbounds nuw i8, ptr %6, i64 %_30
+  %8 = getelementptr inbounds nuw i8, ptr %7, i64 2
+  %wide.load = load <2 x i8>, ptr %7, align 1
+  %wide.load31 = load <2 x i8>, ptr %8, align 1
+  %9 = icmp ne <2 x i8> %wide.load, zeroinitializer
+  %10 = icmp ne <2 x i8> %wide.load31, zeroinitializer
+  %11 = zext <2 x i1> %9 to <2 x i64>
+  %12 = zext <2 x i1> %10 to <2 x i64>
+  %13 = shl nuw <2 x i64> %11, %vec.ind
+  %14 = shl nuw <2 x i64> %12, %step.add
+  %15 = or <2 x i64> %13, %vec.phi
+  %16 = or <2 x i64> %14, %vec.phi30
+  %index.next = add nuw i64 %index, 4
+  %vec.ind.next = add nuw <2 x i64> %vec.ind, splat (i64 4)
+  %17 = icmp eq i64 %index.next, %n.vec
+  br i1 %17, label %middle.block, label %vector.body, !llvm.loop !3
+
+middle.block:                                     ; preds = %vector.body
+  %bin.rdx = or <2 x i64> %16, %15
+  %18 = call i64 @llvm.vector.reduce.or.v2i64(<2 x i64> %bin.rdx)
+  br label %bb13
+
+bb9:                                              ; preds = %bb14, %bb5.preheader.split
+  ret void
+
+bb13:                                             ; preds = %middle.block, %bb8, %bb15
+  %packed.sroa.0.023 = phi i64 [ %21, %bb15 ], [ %18, %middle.block ], [ 0, %bb8 ]
+  %iter1.sroa.0.022 = phi i64 [ %_0.i1.i.i11, %bb15 ], [ %n.vec, %middle.block ], [ 0, %bb8 ]
+  %_29 = add nuw nsw i64 %iter1.sroa.0.022, %_30
+  %_32 = icmp ult i64 %_29, %src.1
+  br i1 %_32, label %bb15, label %panic2
+
+bb14:                                             ; preds = %bb15
+  %19 = getelementptr inbounds nuw [8 x i8], ptr %dst.0, i64 %iter.sroa.0.025
+  store i64 %21, ptr %19, align 8
+  %exitcond27.not = icmp eq i64 %_0.i1.i.i, %chunks4
+  br i1 %exitcond27.not, label %bb9, label %bb8
+
+bb15:                                             ; preds = %bb13
+  %_0.i1.i.i11 = add nuw nsw i64 %iter1.sroa.0.022, 1
+  %20 = getelementptr inbounds nuw i8, ptr %src.0, i64 %_29
+  %_28 = load i8, ptr %20, align 1
+  %_27 = icmp ne i8 %_28, 0
+  %_26 = zext i1 %_27 to i64
+  %_25 = shl nuw i64 %_26, %iter1.sroa.0.022
+  %21 = or i64 %_25, %packed.sroa.0.023
+  %exitcond.not = icmp eq i64 %_0.i1.i.i11, 64
+  br i1 %exitcond.not, label %bb14, label %bb13, !llvm.loop !6
+
+panic2:                                           ; preds = %bb13
+  tail call void @_ZN4core9panicking18panic_bounds_check17h9ae613628793029fE(i64 %_29, i64 %src.1, ptr nonnull align 8 @alloc_f8b5cd2d0201c42fe0e3a94f0cc4a75a) #6
+  unreachable
+}
+*** IR Dump After LoopUnrollPass on collect_bool ***
+; Function Attrs: nounwind nonlazybind uwtable
+define void @collect_bool(ptr nofree readonly align 1 captures(none) %src.0, i64 %src.1, ptr nofree writeonly align 8 captures(none) %dst.0, i64 %dst.1) unnamed_addr #2 {
+start:
+  %chunks4 = lshr i64 %src.1, 6
+  %_6.not = icmp ult i64 %dst.1, %chunks4
+  br i1 %_6.not, label %bb3, label %bb5.preheader.split
+
+bb5.preheader.split:                              ; preds = %start
+  %_0.i.i.i24.not = icmp eq i64 %chunks4, 0
+  br i1 %_0.i.i.i24.not, label %bb9, label %bb8.preheader
+
+bb8.preheader:                                    ; preds = %bb5.preheader.split
+  br label %bb8
+
+bb3:                                              ; preds = %start
+  tail call void @_ZN4core9panicking5panic17h8bbbe005ba322b34E(ptr nonnull align 1 @alloc_6957e294861d181a0a9ce74760eb0966, i64 37, ptr nonnull align 8 @alloc_74638943da2922824d60629cbfb02232) #6
+  unreachable
+
+bb8:                                              ; preds = %bb8.preheader, %bb14
+  %iter.sroa.0.025 = phi i64 [ %_0.i1.i.i, %bb14 ], [ 0, %bb8.preheader ]
+  %0 = shl nuw i64 %iter.sroa.0.025, 6
+  %umax = call i64 @llvm.umax.i64(i64 %src.1, i64 %0)
+  %1 = shl i64 %iter.sroa.0.025, 6
+  %2 = sub i64 %umax, %1
+  %_0.i1.i.i = add nuw nsw i64 %iter.sroa.0.025, 1
+  %_30 = shl i64 %iter.sroa.0.025, 6
+  %min.iters.check = icmp ult i64 %2, 4
+  br i1 %min.iters.check, label %bb13.preheader, label %vector.ph
+
+vector.ph:                                        ; preds = %bb8
+  %umin = call i64 @llvm.umin.i64(i64 %2, i64 63)
+  %3 = add nuw nsw i64 %umin, 1
+  %n.mod.vf = and i64 %3, 3
+  %4 = icmp eq i64 %n.mod.vf, 0
+  %5 = select i1 %4, i64 4, i64 %n.mod.vf
+  %n.vec = sub nsw i64 %3, %5
+  br label %vector.body
+
+vector.body:                                      ; preds = %vector.body, %vector.ph
+  %index = phi i64 [ 0, %vector.ph ], [ %index.next, %vector.body ]
+  %vec.phi = phi <2 x i64> [ zeroinitializer, %vector.ph ], [ %15, %vector.body ]
+  %vec.phi30 = phi <2 x i64> [ zeroinitializer, %vector.ph ], [ %16, %vector.body ]
+  %vec.ind = phi <2 x i64> [ <i64 0, i64 1>, %vector.ph ], [ %vec.ind.next, %vector.body ]
+  %step.add = add nuw <2 x i64> %vec.ind, splat (i64 2)
+  %6 = getelementptr inbounds nuw i8, ptr %src.0, i64 %index
+  %7 = getelementptr inbounds nuw i8, ptr %6, i64 %_30
+  %8 = getelementptr inbounds nuw i8, ptr %7, i64 2
+  %wide.load = load <2 x i8>, ptr %7, align 1
+  %wide.load31 = load <2 x i8>, ptr %8, align 1
+  %9 = icmp ne <2 x i8> %wide.load, zeroinitializer
+  %10 = icmp ne <2 x i8> %wide.load31, zeroinitializer
+  %11 = zext <2 x i1> %9 to <2 x i64>
+  %12 = zext <2 x i1> %10 to <2 x i64>
+  %13 = shl nuw <2 x i64> %11, %vec.ind
+  %14 = shl nuw <2 x i64> %12, %step.add
+  %15 = or <2 x i64> %13, %vec.phi
+  %16 = or <2 x i64> %14, %vec.phi30
+  %index.next = add nuw i64 %index, 4
+  %vec.ind.next = add nuw <2 x i64> %vec.ind, splat (i64 4)
+  %17 = icmp eq i64 %index.next, %n.vec
+  br i1 %17, label %middle.block, label %vector.body, !llvm.loop !3
+
+middle.block:                                     ; preds = %vector.body
+  %.lcssa32 = phi <2 x i64> [ %15, %vector.body ]
+  %.lcssa = phi <2 x i64> [ %16, %vector.body ]
+  %bin.rdx = or <2 x i64> %.lcssa, %.lcssa32
+  %18 = call i64 @llvm.vector.reduce.or.v2i64(<2 x i64> %bin.rdx)
+  br label %bb13.preheader
+
+bb13.preheader:                                   ; preds = %bb8, %middle.block
+  %packed.sroa.0.023.ph = phi i64 [ 0, %bb8 ], [ %18, %middle.block ]
+  %iter1.sroa.0.022.ph = phi i64 [ 0, %bb8 ], [ %n.vec, %middle.block ]
+  br label %bb13
+
+bb9.loopexit:                                     ; preds = %bb14
+  br label %bb9
+
+bb9:                                              ; preds = %bb9.loopexit, %bb5.preheader.split
+  ret void
+
+bb13:                                             ; preds = %bb13.preheader, %bb15
+  %packed.sroa.0.023 = phi i64 [ %21, %bb15 ], [ %packed.sroa.0.023.ph, %bb13.preheader ]
+  %iter1.sroa.0.022 = phi i64 [ %_0.i1.i.i11, %bb15 ], [ %iter1.sroa.0.022.ph, %bb13.preheader ]
+  %_29 = add nuw nsw i64 %iter1.sroa.0.022, %_30
+  %_32 = icmp ult i64 %_29, %src.1
+  br i1 %_32, label %bb15, label %panic2
+
+bb14:                                             ; preds = %bb15
+  %.lcssa34 = phi i64 [ %21, %bb15 ]
+  %19 = getelementptr inbounds nuw [8 x i8], ptr %dst.0, i64 %iter.sroa.0.025
+  store i64 %.lcssa34, ptr %19, align 8
+  %exitcond27.not = icmp eq i64 %_0.i1.i.i, %chunks4
+  br i1 %exitcond27.not, label %bb9.loopexit, label %bb8
+
+bb15:                                             ; preds = %bb13
+  %_0.i1.i.i11 = add nuw nsw i64 %iter1.sroa.0.022, 1
+  %20 = getelementptr inbounds nuw i8, ptr %src.0, i64 %_29
+  %_28 = load i8, ptr %20, align 1
+  %_27 = icmp ne i8 %_28, 0
+  %_26 = zext i1 %_27 to i64
+  %_25 = shl nuw i64 %_26, %iter1.sroa.0.022
+  %21 = or i64 %_25, %packed.sroa.0.023
+  %exitcond.not = icmp eq i64 %_0.i1.i.i11, 64
+  br i1 %exitcond.not, label %bb14, label %bb13, !llvm.loop !6
+
+panic2:                                           ; preds = %bb13
+  %_29.lcssa = phi i64 [ %_29, %bb13 ]
+  tail call void @_ZN4core9panicking18panic_bounds_check17h9ae613628793029fE(i64 %_29.lcssa, i64 %src.1, ptr nonnull align 8 @alloc_f8b5cd2d0201c42fe0e3a94f0cc4a75a) #6
+  unreachable
+}
+*** IR Dump After InstCombinePass on collect_bool ***
+; Function Attrs: nounwind nonlazybind uwtable
+define void @collect_bool(ptr nofree readonly align 1 captures(none) %src.0, i64 %src.1, ptr nofree writeonly align 8 captures(none) %dst.0, i64 %dst.1) unnamed_addr #2 {
+start:
+  %chunks4 = lshr i64 %src.1, 6
+  %_6.not = icmp ult i64 %dst.1, %chunks4
+  br i1 %_6.not, label %bb3, label %bb5.preheader.split
+
+bb5.preheader.split:                              ; preds = %start
+  %_0.i.i.i24.not = icmp eq i64 %chunks4, 0
+  br i1 %_0.i.i.i24.not, label %bb9, label %bb8.preheader
+
+bb8.preheader:                                    ; preds = %bb5.preheader.split
+  br label %bb8
+
+bb3:                                              ; preds = %start
+  tail call void @_ZN4core9panicking5panic17h8bbbe005ba322b34E(ptr nonnull align 1 @alloc_6957e294861d181a0a9ce74760eb0966, i64 37, ptr nonnull align 8 @alloc_74638943da2922824d60629cbfb02232) #6
+  unreachable
+
+bb8:                                              ; preds = %bb8.preheader, %bb14
+  %iter.sroa.0.025 = phi i64 [ %_0.i1.i.i, %bb14 ], [ 0, %bb8.preheader ]
+  %0 = shl nuw i64 %iter.sroa.0.025, 6
+  %umax = call i64 @llvm.umax.i64(i64 %src.1, i64 %0)
+  %1 = shl i64 %iter.sroa.0.025, 6
+  %2 = sub i64 %umax, %1
+  %_0.i1.i.i = add nuw nsw i64 %iter.sroa.0.025, 1
+  %_30 = shl i64 %iter.sroa.0.025, 6
+  %min.iters.check = icmp ult i64 %2, 4
+  br i1 %min.iters.check, label %bb13.preheader, label %vector.ph
+
+vector.ph:                                        ; preds = %bb8
+  %umin = call i64 @llvm.umin.i64(i64 %2, i64 63)
+  %3 = add nuw nsw i64 %umin, 1
+  %n.mod.vf = and i64 %3, 3
+  %4 = icmp eq i64 %n.mod.vf, 0
+  %5 = select i1 %4, i64 4, i64 %n.mod.vf
+  %n.vec = sub nsw i64 %3, %5
+  br label %vector.body
+
+vector.body:                                      ; preds = %vector.body, %vector.ph
+  %index = phi i64 [ 0, %vector.ph ], [ %index.next, %vector.body ]
+  %vec.phi = phi <2 x i64> [ zeroinitializer, %vector.ph ], [ %15, %vector.body ]
+  %vec.phi30 = phi <2 x i64> [ zeroinitializer, %vector.ph ], [ %16, %vector.body ]
+  %vec.ind = phi <2 x i64> [ <i64 0, i64 1>, %vector.ph ], [ %vec.ind.next, %vector.body ]
+  %step.add = add nuw <2 x i64> %vec.ind, splat (i64 2)
+  %6 = getelementptr inbounds nuw i8, ptr %src.0, i64 %index
+  %7 = getelementptr inbounds nuw i8, ptr %6, i64 %_30
+  %8 = getelementptr inbounds nuw i8, ptr %7, i64 2
+  %wide.load = load <2 x i8>, ptr %7, align 1
+  %wide.load31 = load <2 x i8>, ptr %8, align 1
+  %9 = icmp ne <2 x i8> %wide.load, zeroinitializer
+  %10 = icmp ne <2 x i8> %wide.load31, zeroinitializer
+  %11 = zext <2 x i1> %9 to <2 x i64>
+  %12 = zext <2 x i1> %10 to <2 x i64>
+  %13 = shl nuw <2 x i64> %11, %vec.ind
+  %14 = shl nuw <2 x i64> %12, %step.add
+  %15 = or <2 x i64> %13, %vec.phi
+  %16 = or <2 x i64> %14, %vec.phi30
+  %index.next = add nuw i64 %index, 4
+  %vec.ind.next = add nuw <2 x i64> %vec.ind, splat (i64 4)
+  %17 = icmp eq i64 %index.next, %n.vec
+  br i1 %17, label %middle.block, label %vector.body, !llvm.loop !3
+
+middle.block:                                     ; preds = %vector.body
+  %bin.rdx = or <2 x i64> %16, %15
+  %18 = call i64 @llvm.vector.reduce.or.v2i64(<2 x i64> %bin.rdx)
+  br label %bb13.preheader
+
+bb13.preheader:                                   ; preds = %bb8, %middle.block
+  %packed.sroa.0.023.ph = phi i64 [ 0, %bb8 ], [ %18, %middle.block ]
+  %iter1.sroa.0.022.ph = phi i64 [ 0, %bb8 ], [ %n.vec, %middle.block ]
+  br label %bb13
+
+bb9.loopexit:                                     ; preds = %bb14
+  br label %bb9
+
+bb9:                                              ; preds = %bb9.loopexit, %bb5.preheader.split
+  ret void
+
+bb13:                                             ; preds = %bb13.preheader, %bb15
+  %packed.sroa.0.023 = phi i64 [ %21, %bb15 ], [ %packed.sroa.0.023.ph, %bb13.preheader ]
+  %iter1.sroa.0.022 = phi i64 [ %_0.i1.i.i11, %bb15 ], [ %iter1.sroa.0.022.ph, %bb13.preheader ]
+  %_29 = add nuw nsw i64 %iter1.sroa.0.022, %_30
+  %_32 = icmp ult i64 %_29, %src.1
+  br i1 %_32, label %bb15, label %panic2
+
+bb14:                                             ; preds = %bb15
+  %19 = getelementptr inbounds nuw [8 x i8], ptr %dst.0, i64 %iter.sroa.0.025
+  store i64 %21, ptr %19, align 8
+  %exitcond27.not = icmp eq i64 %_0.i1.i.i, %chunks4
+  br i1 %exitcond27.not, label %bb9.loopexit, label %bb8
+
+bb15:                                             ; preds = %bb13
+  %_0.i1.i.i11 = add nuw nsw i64 %iter1.sroa.0.022, 1
+  %20 = getelementptr inbounds nuw i8, ptr %src.0, i64 %_29
+  %_28 = load i8, ptr %20, align 1
+  %_27 = icmp ne i8 %_28, 0
+  %_26 = zext i1 %_27 to i64
+  %_25 = shl nuw i64 %_26, %iter1.sroa.0.022
+  %21 = or i64 %_25, %packed.sroa.0.023
+  %exitcond.not = icmp eq i64 %_0.i1.i.i11, 64
+  br i1 %exitcond.not, label %bb14, label %bb13, !llvm.loop !6
+
+panic2:                                           ; preds = %bb13
+  tail call void @_ZN4core9panicking18panic_bounds_check17h9ae613628793029fE(i64 %_29, i64 %src.1, ptr nonnull align 8 @alloc_f8b5cd2d0201c42fe0e3a94f0cc4a75a) #6
+  unreachable
+}
+*** IR Dump After LCSSAPass on collect_bool ***
+; Function Attrs: nounwind nonlazybind uwtable
+define void @collect_bool(ptr nofree readonly align 1 captures(none) %src.0, i64 %src.1, ptr nofree writeonly align 8 captures(none) %dst.0, i64 %dst.1) unnamed_addr #2 {
+start:
+  %chunks4 = lshr i64 %src.1, 6
+  %_6.not = icmp ult i64 %dst.1, %chunks4
+  br i1 %_6.not, label %bb3, label %bb5.preheader.split
+
+bb5.preheader.split:                              ; preds = %start
+  %_0.i.i.i24.not = icmp eq i64 %chunks4, 0
+  br i1 %_0.i.i.i24.not, label %bb9, label %bb8.preheader
+
+bb8.preheader:                                    ; preds = %bb5.preheader.split
+  br label %bb8
+
+bb3:                                              ; preds = %start
+  tail call void @_ZN4core9panicking5panic17h8bbbe005ba322b34E(ptr nonnull align 1 @alloc_6957e294861d181a0a9ce74760eb0966, i64 37, ptr nonnull align 8 @alloc_74638943da2922824d60629cbfb02232) #6
+  unreachable
+
+bb8:                                              ; preds = %bb8.preheader, %bb14
+  %iter.sroa.0.025 = phi i64 [ %_0.i1.i.i, %bb14 ], [ 0, %bb8.preheader ]
+  %0 = shl nuw i64 %iter.sroa.0.025, 6
+  %umax = call i64 @llvm.umax.i64(i64 %src.1, i64 %0)
+  %1 = shl i64 %iter.sroa.0.025, 6
+  %2 = sub i64 %umax, %1
+  %_0.i1.i.i = add nuw nsw i64 %iter.sroa.0.025, 1
+  %_30 = shl i64 %iter.sroa.0.025, 6
+  %min.iters.check = icmp ult i64 %2, 4
+  br i1 %min.iters.check, label %bb13.preheader, label %vector.ph
+
+vector.ph:                                        ; preds = %bb8
+  %umin = call i64 @llvm.umin.i64(i64 %2, i64 63)
+  %3 = add nuw nsw i64 %umin, 1
+  %n.mod.vf = and i64 %3, 3
+  %4 = icmp eq i64 %n.mod.vf, 0
+  %5 = select i1 %4, i64 4, i64 %n.mod.vf
+  %n.vec = sub nsw i64 %3, %5
+  br label %vector.body
+
+vector.body:                                      ; preds = %vector.body, %vector.ph
+  %index = phi i64 [ 0, %vector.ph ], [ %index.next, %vector.body ]
+  %vec.phi = phi <2 x i64> [ zeroinitializer, %vector.ph ], [ %15, %vector.body ]
+  %vec.phi30 = phi <2 x i64> [ zeroinitializer, %vector.ph ], [ %16, %vector.body ]
+  %vec.ind = phi <2 x i64> [ <i64 0, i64 1>, %vector.ph ], [ %vec.ind.next, %vector.body ]
+  %step.add = add nuw <2 x i64> %vec.ind, splat (i64 2)
+  %6 = getelementptr inbounds nuw i8, ptr %src.0, i64 %index
+  %7 = getelementptr inbounds nuw i8, ptr %6, i64 %_30
+  %8 = getelementptr inbounds nuw i8, ptr %7, i64 2
+  %wide.load = load <2 x i8>, ptr %7, align 1
+  %wide.load31 = load <2 x i8>, ptr %8, align 1
+  %9 = icmp ne <2 x i8> %wide.load, zeroinitializer
+  %10 = icmp ne <2 x i8> %wide.load31, zeroinitializer
+  %11 = zext <2 x i1> %9 to <2 x i64>
+  %12 = zext <2 x i1> %10 to <2 x i64>
+  %13 = shl nuw <2 x i64> %11, %vec.ind
+  %14 = shl nuw <2 x i64> %12, %step.add
+  %15 = or <2 x i64> %13, %vec.phi
+  %16 = or <2 x i64> %14, %vec.phi30
+  %index.next = add nuw i64 %index, 4
+  %vec.ind.next = add nuw <2 x i64> %vec.ind, splat (i64 4)
+  %17 = icmp eq i64 %index.next, %n.vec
+  br i1 %17, label %middle.block, label %vector.body, !llvm.loop !3
+
+middle.block:                                     ; preds = %vector.body
+  %.lcssa35 = phi <2 x i64> [ %15, %vector.body ]
+  %.lcssa = phi <2 x i64> [ %16, %vector.body ]
+  %bin.rdx = or <2 x i64> %.lcssa, %.lcssa35
+  %18 = call i64 @llvm.vector.reduce.or.v2i64(<2 x i64> %bin.rdx)
+  br label %bb13.preheader
+
+bb13.preheader:                                   ; preds = %bb8, %middle.block
+  %packed.sroa.0.023.ph = phi i64 [ 0, %bb8 ], [ %18, %middle.block ]
+  %iter1.sroa.0.022.ph = phi i64 [ 0, %bb8 ], [ %n.vec, %middle.block ]
+  br label %bb13
+
+bb9.loopexit:                                     ; preds = %bb14
+  br label %bb9
+
+bb9:                                              ; preds = %bb9.loopexit, %bb5.preheader.split
+  ret void
+
+bb13:                                             ; preds = %bb13.preheader, %bb15
+  %packed.sroa.0.023 = phi i64 [ %21, %bb15 ], [ %packed.sroa.0.023.ph, %bb13.preheader ]
+  %iter1.sroa.0.022 = phi i64 [ %_0.i1.i.i11, %bb15 ], [ %iter1.sroa.0.022.ph, %bb13.preheader ]
+  %_29 = add nuw nsw i64 %iter1.sroa.0.022, %_30
+  %_32 = icmp ult i64 %_29, %src.1
+  br i1 %_32, label %bb15, label %panic2
+
+bb14:                                             ; preds = %bb15
+  %.lcssa37 = phi i64 [ %21, %bb15 ]
+  %19 = getelementptr inbounds nuw [8 x i8], ptr %dst.0, i64 %iter.sroa.0.025
+  store i64 %.lcssa37, ptr %19, align 8
+  %exitcond27.not = icmp eq i64 %_0.i1.i.i, %chunks4
+  br i1 %exitcond27.not, label %bb9.loopexit, label %bb8
+
+bb15:                                             ; preds = %bb13
+  %_0.i1.i.i11 = add nuw nsw i64 %iter1.sroa.0.022, 1
+  %20 = getelementptr inbounds nuw i8, ptr %src.0, i64 %_29
+  %_28 = load i8, ptr %20, align 1
+  %_27 = icmp ne i8 %_28, 0
+  %_26 = zext i1 %_27 to i64
+  %_25 = shl nuw i64 %_26, %iter1.sroa.0.022
+  %21 = or i64 %_25, %packed.sroa.0.023
+  %exitcond.not = icmp eq i64 %_0.i1.i.i11, 64
+  br i1 %exitcond.not, label %bb14, label %bb13, !llvm.loop !6
+
+panic2:                                           ; preds = %bb13
+  %_29.lcssa = phi i64 [ %_29, %bb13 ]
+  tail call void @_ZN4core9panicking18panic_bounds_check17h9ae613628793029fE(i64 %_29.lcssa, i64 %src.1, ptr nonnull align 8 @alloc_f8b5cd2d0201c42fe0e3a94f0cc4a75a) #6
+  unreachable
+}
+*** IR Dump After LICMPass on loop %vector.body in function collect_bool ***
+
+; Preheader:
+vector.ph:                                        ; preds = %bb8
+  %umin = call i64 @llvm.umin.i64(i64 %2, i64 63)
+  %3 = add nuw nsw i64 %umin, 1
+  %n.mod.vf = and i64 %3, 3
+  %4 = icmp eq i64 %n.mod.vf, 0
+  %5 = select i1 %4, i64 4, i64 %n.mod.vf
+  %n.vec = sub nsw i64 %3, %5
+  %invariant.gep = getelementptr i8, ptr %src.0, i64 %_30
+  br label %vector.body
+
+; Loop:
+vector.body:                                      ; preds = %vector.body, %vector.ph
+  %index = phi i64 [ 0, %vector.ph ], [ %index.next, %vector.body ]
+  %vec.phi = phi <2 x i64> [ zeroinitializer, %vector.ph ], [ %13, %vector.body ]
+  %vec.phi30 = phi <2 x i64> [ zeroinitializer, %vector.ph ], [ %14, %vector.body ]
+  %vec.ind = phi <2 x i64> [ <i64 0, i64 1>, %vector.ph ], [ %vec.ind.next, %vector.body ]
+  %step.add = add nuw <2 x i64> %vec.ind, splat (i64 2)
+  %gep = getelementptr i8, ptr %invariant.gep, i64 %index
+  %6 = getelementptr inbounds nuw i8, ptr %gep, i64 2
+  %wide.load = load <2 x i8>, ptr %gep, align 1
+  %wide.load31 = load <2 x i8>, ptr %6, align 1
+  %7 = icmp ne <2 x i8> %wide.load, zeroinitializer
+  %8 = icmp ne <2 x i8> %wide.load31, zeroinitializer
+  %9 = zext <2 x i1> %7 to <2 x i64>
+  %10 = zext <2 x i1> %8 to <2 x i64>
+  %11 = shl nuw <2 x i64> %9, %vec.ind
+  %12 = shl nuw <2 x i64> %10, %step.add
+  %13 = or <2 x i64> %11, %vec.phi
+  %14 = or <2 x i64> %12, %vec.phi30
+  %index.next = add nuw i64 %index, 4
+  %vec.ind.next = add nuw <2 x i64> %vec.ind, splat (i64 4)
+  %15 = icmp eq i64 %index.next, %n.vec
+  br i1 %15, label %middle.block, label %vector.body, !llvm.loop !3
+
+; Exit blocks
+middle.block:                                     ; preds = %vector.body
+  %.lcssa35 = phi <2 x i64> [ %13, %vector.body ]
+  %.lcssa = phi <2 x i64> [ %14, %vector.body ]
+  %bin.rdx = or <2 x i64> %.lcssa, %.lcssa35
+  %16 = call i64 @llvm.vector.reduce.or.v2i64(<2 x i64> %bin.rdx)
+  br label %bb13.preheader
+*** IR Dump After InstSimplifyPass on collect_bool ***
+; Function Attrs: nounwind nonlazybind uwtable
+define void @collect_bool(ptr nofree readonly align 1 captures(none) %src.0, i64 %src.1, ptr nofree writeonly align 8 captures(none) %dst.0, i64 %dst.1) unnamed_addr #2 {
+start:
+  %chunks4 = lshr i64 %src.1, 6
+  %_6.not = icmp ult i64 %dst.1, %chunks4
+  br i1 %_6.not, label %bb3, label %bb5.preheader.split
+
+bb5.preheader.split:                              ; preds = %start
+  %_0.i.i.i24.not = icmp eq i64 %chunks4, 0
+  br i1 %_0.i.i.i24.not, label %bb9, label %bb8.preheader
+
+bb8.preheader:                                    ; preds = %bb5.preheader.split
+  br label %bb8
+
+bb3:                                              ; preds = %start
+  tail call void @_ZN4core9panicking5panic17h8bbbe005ba322b34E(ptr nonnull align 1 @alloc_6957e294861d181a0a9ce74760eb0966, i64 37, ptr nonnull align 8 @alloc_74638943da2922824d60629cbfb02232) #6
+  unreachable
+
+bb8:                                              ; preds = %bb8.preheader, %bb14
+  %iter.sroa.0.025 = phi i64 [ %_0.i1.i.i, %bb14 ], [ 0, %bb8.preheader ]
+  %0 = shl nuw i64 %iter.sroa.0.025, 6
+  %umax = call i64 @llvm.umax.i64(i64 %src.1, i64 %0)
+  %1 = shl i64 %iter.sroa.0.025, 6
+  %2 = sub i64 %umax, %1
+  %_0.i1.i.i = add nuw nsw i64 %iter.sroa.0.025, 1
+  %_30 = shl i64 %iter.sroa.0.025, 6
+  %min.iters.check = icmp ult i64 %2, 4
+  br i1 %min.iters.check, label %bb13.preheader, label %vector.ph
+
+vector.ph:                                        ; preds = %bb8
+  %umin = call i64 @llvm.umin.i64(i64 %2, i64 63)
+  %3 = add nuw nsw i64 %umin, 1
+  %n.mod.vf = and i64 %3, 3
+  %4 = icmp eq i64 %n.mod.vf, 0
+  %5 = select i1 %4, i64 4, i64 %n.mod.vf
+  %n.vec = sub nsw i64 %3, %5
+  %invariant.gep = getelementptr i8, ptr %src.0, i64 %_30
+  br label %vector.body
+
+vector.body:                                      ; preds = %vector.body, %vector.ph
+  %index = phi i64 [ 0, %vector.ph ], [ %index.next, %vector.body ]
+  %vec.phi = phi <2 x i64> [ zeroinitializer, %vector.ph ], [ %13, %vector.body ]
+  %vec.phi30 = phi <2 x i64> [ zeroinitializer, %vector.ph ], [ %14, %vector.body ]
+  %vec.ind = phi <2 x i64> [ <i64 0, i64 1>, %vector.ph ], [ %vec.ind.next, %vector.body ]
+  %step.add = add nuw <2 x i64> %vec.ind, splat (i64 2)
+  %gep = getelementptr i8, ptr %invariant.gep, i64 %index
+  %6 = getelementptr inbounds nuw i8, ptr %gep, i64 2
+  %wide.load = load <2 x i8>, ptr %gep, align 1
+  %wide.load31 = load <2 x i8>, ptr %6, align 1
+  %7 = icmp ne <2 x i8> %wide.load, zeroinitializer
+  %8 = icmp ne <2 x i8> %wide.load31, zeroinitializer
+  %9 = zext <2 x i1> %7 to <2 x i64>
+  %10 = zext <2 x i1> %8 to <2 x i64>
+  %11 = shl nuw <2 x i64> %9, %vec.ind
+  %12 = shl nuw <2 x i64> %10, %step.add
+  %13 = or <2 x i64> %11, %vec.phi
+  %14 = or <2 x i64> %12, %vec.phi30
+  %index.next = add nuw i64 %index, 4
+  %vec.ind.next = add nuw <2 x i64> %vec.ind, splat (i64 4)
+  %15 = icmp eq i64 %index.next, %n.vec
+  br i1 %15, label %middle.block, label %vector.body, !llvm.loop !3
+
+middle.block:                                     ; preds = %vector.body
+  %bin.rdx = or <2 x i64> %14, %13
+  %16 = call i64 @llvm.vector.reduce.or.v2i64(<2 x i64> %bin.rdx)
+  br label %bb13.preheader
+
+bb13.preheader:                                   ; preds = %bb8, %middle.block
+  %packed.sroa.0.023.ph = phi i64 [ 0, %bb8 ], [ %16, %middle.block ]
+  %iter1.sroa.0.022.ph = phi i64 [ 0, %bb8 ], [ %n.vec, %middle.block ]
+  br label %bb13
+
+bb9.loopexit:                                     ; preds = %bb14
+  br label %bb9
+
+bb9:                                              ; preds = %bb9.loopexit, %bb5.preheader.split
+  ret void
+
+bb13:                                             ; preds = %bb13.preheader, %bb15
+  %packed.sroa.0.023 = phi i64 [ %19, %bb15 ], [ %packed.sroa.0.023.ph, %bb13.preheader ]
+  %iter1.sroa.0.022 = phi i64 [ %_0.i1.i.i11, %bb15 ], [ %iter1.sroa.0.022.ph, %bb13.preheader ]
+  %_29 = add nuw nsw i64 %iter1.sroa.0.022, %_30
+  %_32 = icmp ult i64 %_29, %src.1
+  br i1 %_32, label %bb15, label %panic2
+
+bb14:                                             ; preds = %bb15
+  %17 = getelementptr inbounds nuw [8 x i8], ptr %dst.0, i64 %iter.sroa.0.025
+  store i64 %19, ptr %17, align 8
+  %exitcond27.not = icmp eq i64 %_0.i1.i.i, %chunks4
+  br i1 %exitcond27.not, label %bb9.loopexit, label %bb8
+
+bb15:                                             ; preds = %bb13
+  %_0.i1.i.i11 = add nuw nsw i64 %iter1.sroa.0.022, 1
+  %18 = getelementptr inbounds nuw i8, ptr %src.0, i64 %_29
+  %_28 = load i8, ptr %18, align 1
+  %_27 = icmp ne i8 %_28, 0
+  %_26 = zext i1 %_27 to i64
+  %_25 = shl nuw i64 %_26, %iter1.sroa.0.022
+  %19 = or i64 %_25, %packed.sroa.0.023
+  %exitcond.not = icmp eq i64 %_0.i1.i.i11, 64
+  br i1 %exitcond.not, label %bb14, label %bb13, !llvm.loop !6
+
+panic2:                                           ; preds = %bb13
+  tail call void @_ZN4core9panicking18panic_bounds_check17h9ae613628793029fE(i64 %_29, i64 %src.1, ptr nonnull align 8 @alloc_f8b5cd2d0201c42fe0e3a94f0cc4a75a) #6
+  unreachable
+}
+*** IR Dump After TailCallElimPass on collect_bool ***
+; Function Attrs: nounwind nonlazybind uwtable
+define void @collect_bool(ptr nofree readonly align 1 captures(none) %src.0, i64 %src.1, ptr nofree writeonly align 8 captures(none) %dst.0, i64 %dst.1) unnamed_addr #2 {
+start:
+  %chunks4 = lshr i64 %src.1, 6
+  %_6.not = icmp ult i64 %dst.1, %chunks4
+  br i1 %_6.not, label %bb3, label %bb5.preheader.split
+
+bb5.preheader.split:                              ; preds = %start
+  %_0.i.i.i24.not = icmp eq i64 %chunks4, 0
+  br i1 %_0.i.i.i24.not, label %bb9, label %bb8.preheader
+
+bb8.preheader:                                    ; preds = %bb5.preheader.split
+  br label %bb8
+
+bb3:                                              ; preds = %start
+  tail call void @_ZN4core9panicking5panic17h8bbbe005ba322b34E(ptr nonnull align 1 @alloc_6957e294861d181a0a9ce74760eb0966, i64 37, ptr nonnull align 8 @alloc_74638943da2922824d60629cbfb02232) #6
+  unreachable
+
+bb8:                                              ; preds = %bb8.preheader, %bb14
+  %iter.sroa.0.025 = phi i64 [ %_0.i1.i.i, %bb14 ], [ 0, %bb8.preheader ]
+  %0 = shl nuw i64 %iter.sroa.0.025, 6
+  %umax = tail call i64 @llvm.umax.i64(i64 %src.1, i64 %0)
+  %1 = shl i64 %iter.sroa.0.025, 6
+  %2 = sub i64 %umax, %1
+  %_0.i1.i.i = add nuw nsw i64 %iter.sroa.0.025, 1
+  %_30 = shl i64 %iter.sroa.0.025, 6
+  %min.iters.check = icmp ult i64 %2, 4
+  br i1 %min.iters.check, label %bb13.preheader, label %vector.ph
+
+vector.ph:                                        ; preds = %bb8
+  %umin = tail call i64 @llvm.umin.i64(i64 %2, i64 63)
+  %3 = add nuw nsw i64 %umin, 1
+  %n.mod.vf = and i64 %3, 3
+  %4 = icmp eq i64 %n.mod.vf, 0
+  %5 = select i1 %4, i64 4, i64 %n.mod.vf
+  %n.vec = sub nsw i64 %3, %5
+  %invariant.gep = getelementptr i8, ptr %src.0, i64 %_30
+  br label %vector.body
+
+vector.body:                                      ; preds = %vector.body, %vector.ph
+  %index = phi i64 [ 0, %vector.ph ], [ %index.next, %vector.body ]
+  %vec.phi = phi <2 x i64> [ zeroinitializer, %vector.ph ], [ %13, %vector.body ]
+  %vec.phi30 = phi <2 x i64> [ zeroinitializer, %vector.ph ], [ %14, %vector.body ]
+  %vec.ind = phi <2 x i64> [ <i64 0, i64 1>, %vector.ph ], [ %vec.ind.next, %vector.body ]
+  %step.add = add nuw <2 x i64> %vec.ind, splat (i64 2)
+  %gep = getelementptr i8, ptr %invariant.gep, i64 %index
+  %6 = getelementptr inbounds nuw i8, ptr %gep, i64 2
+  %wide.load = load <2 x i8>, ptr %gep, align 1
+  %wide.load31 = load <2 x i8>, ptr %6, align 1
+  %7 = icmp ne <2 x i8> %wide.load, zeroinitializer
+  %8 = icmp ne <2 x i8> %wide.load31, zeroinitializer
+  %9 = zext <2 x i1> %7 to <2 x i64>
+  %10 = zext <2 x i1> %8 to <2 x i64>
+  %11 = shl nuw <2 x i64> %9, %vec.ind
+  %12 = shl nuw <2 x i64> %10, %step.add
+  %13 = or <2 x i64> %11, %vec.phi
+  %14 = or <2 x i64> %12, %vec.phi30
+  %index.next = add nuw i64 %index, 4
+  %vec.ind.next = add nuw <2 x i64> %vec.ind, splat (i64 4)
+  %15 = icmp eq i64 %index.next, %n.vec
+  br i1 %15, label %middle.block, label %vector.body, !llvm.loop !3
+
+middle.block:                                     ; preds = %vector.body
+  %bin.rdx = or <2 x i64> %14, %13
+  %16 = tail call i64 @llvm.vector.reduce.or.v2i64(<2 x i64> %bin.rdx)
+  br label %bb13.preheader
+
+bb13.preheader:                                   ; preds = %bb8, %middle.block
+  %packed.sroa.0.023.ph = phi i64 [ 0, %bb8 ], [ %16, %middle.block ]
+  %iter1.sroa.0.022.ph = phi i64 [ 0, %bb8 ], [ %n.vec, %middle.block ]
+  br label %bb13
+
+bb9.loopexit:                                     ; preds = %bb14
+  br label %bb9
+
+bb9:                                              ; preds = %bb9.loopexit, %bb5.preheader.split
+  ret void
+
+bb13:                                             ; preds = %bb13.preheader, %bb15
+  %packed.sroa.0.023 = phi i64 [ %19, %bb15 ], [ %packed.sroa.0.023.ph, %bb13.preheader ]
+  %iter1.sroa.0.022 = phi i64 [ %_0.i1.i.i11, %bb15 ], [ %iter1.sroa.0.022.ph, %bb13.preheader ]
+  %_29 = add nuw nsw i64 %iter1.sroa.0.022, %_30
+  %_32 = icmp ult i64 %_29, %src.1
+  br i1 %_32, label %bb15, label %panic2
+
+bb14:                                             ; preds = %bb15
+  %17 = getelementptr inbounds nuw [8 x i8], ptr %dst.0, i64 %iter.sroa.0.025
+  store i64 %19, ptr %17, align 8
+  %exitcond27.not = icmp eq i64 %_0.i1.i.i, %chunks4
+  br i1 %exitcond27.not, label %bb9.loopexit, label %bb8
+
+bb15:                                             ; preds = %bb13
+  %_0.i1.i.i11 = add nuw nsw i64 %iter1.sroa.0.022, 1
+  %18 = getelementptr inbounds nuw i8, ptr %src.0, i64 %_29
+  %_28 = load i8, ptr %18, align 1
+  %_27 = icmp ne i8 %_28, 0
+  %_26 = zext i1 %_27 to i64
+  %_25 = shl nuw i64 %_26, %iter1.sroa.0.022
+  %19 = or i64 %_25, %packed.sroa.0.023
+  %exitcond.not = icmp eq i64 %_0.i1.i.i11, 64
+  br i1 %exitcond.not, label %bb14, label %bb13, !llvm.loop !6
+
+panic2:                                           ; preds = %bb13
+  tail call void @_ZN4core9panicking18panic_bounds_check17h9ae613628793029fE(i64 %_29, i64 %src.1, ptr nonnull align 8 @alloc_f8b5cd2d0201c42fe0e3a94f0cc4a75a) #6
+  unreachable
+}
+*** IR Dump After SimplifyCFGPass on collect_bool ***
+; Function Attrs: nounwind nonlazybind uwtable
+define void @collect_bool(ptr nofree readonly align 1 captures(none) %src.0, i64 %src.1, ptr nofree writeonly align 8 captures(none) %dst.0, i64 %dst.1) unnamed_addr #2 {
+start:
+  %chunks4 = lshr i64 %src.1, 6
+  %_6.not = icmp ult i64 %dst.1, %chunks4
+  br i1 %_6.not, label %bb3, label %bb5.preheader.split
+
+bb5.preheader.split:                              ; preds = %start
+  %_0.i.i.i24.not = icmp eq i64 %chunks4, 0
+  br i1 %_0.i.i.i24.not, label %bb9, label %bb8
+
+bb3:                                              ; preds = %start
+  tail call void @_ZN4core9panicking5panic17h8bbbe005ba322b34E(ptr nonnull align 1 @alloc_6957e294861d181a0a9ce74760eb0966, i64 37, ptr nonnull align 8 @alloc_74638943da2922824d60629cbfb02232) #6
+  unreachable
+
+bb8:                                              ; preds = %bb5.preheader.split, %bb14
+  %iter.sroa.0.025 = phi i64 [ %_0.i1.i.i, %bb14 ], [ 0, %bb5.preheader.split ]
+  %0 = shl nuw i64 %iter.sroa.0.025, 6
+  %umax = tail call i64 @llvm.umax.i64(i64 %src.1, i64 %0)
+  %1 = shl i64 %iter.sroa.0.025, 6
+  %2 = sub i64 %umax, %1
+  %_0.i1.i.i = add nuw nsw i64 %iter.sroa.0.025, 1
+  %_30 = shl i64 %iter.sroa.0.025, 6
+  %min.iters.check = icmp ult i64 %2, 4
+  br i1 %min.iters.check, label %bb13.preheader, label %vector.ph
+
+vector.ph:                                        ; preds = %bb8
+  %umin = tail call i64 @llvm.umin.i64(i64 %2, i64 63)
+  %3 = add nuw nsw i64 %umin, 1
+  %n.mod.vf = and i64 %3, 3
+  %4 = icmp eq i64 %n.mod.vf, 0
+  %5 = select i1 %4, i64 4, i64 %n.mod.vf
+  %n.vec = sub nsw i64 %3, %5
+  %invariant.gep = getelementptr i8, ptr %src.0, i64 %_30
+  br label %vector.body
+
+vector.body:                                      ; preds = %vector.body, %vector.ph
+  %index = phi i64 [ 0, %vector.ph ], [ %index.next, %vector.body ]
+  %vec.phi = phi <2 x i64> [ zeroinitializer, %vector.ph ], [ %13, %vector.body ]
+  %vec.phi30 = phi <2 x i64> [ zeroinitializer, %vector.ph ], [ %14, %vector.body ]
+  %vec.ind = phi <2 x i64> [ <i64 0, i64 1>, %vector.ph ], [ %vec.ind.next, %vector.body ]
+  %step.add = add nuw <2 x i64> %vec.ind, splat (i64 2)
+  %gep = getelementptr i8, ptr %invariant.gep, i64 %index
+  %6 = getelementptr inbounds nuw i8, ptr %gep, i64 2
+  %wide.load = load <2 x i8>, ptr %gep, align 1
+  %wide.load31 = load <2 x i8>, ptr %6, align 1
+  %7 = icmp ne <2 x i8> %wide.load, zeroinitializer
+  %8 = icmp ne <2 x i8> %wide.load31, zeroinitializer
+  %9 = zext <2 x i1> %7 to <2 x i64>
+  %10 = zext <2 x i1> %8 to <2 x i64>
+  %11 = shl nuw <2 x i64> %9, %vec.ind
+  %12 = shl nuw <2 x i64> %10, %step.add
+  %13 = or <2 x i64> %11, %vec.phi
+  %14 = or <2 x i64> %12, %vec.phi30
+  %index.next = add nuw i64 %index, 4
+  %vec.ind.next = add nuw <2 x i64> %vec.ind, splat (i64 4)
+  %15 = icmp eq i64 %index.next, %n.vec
+  br i1 %15, label %middle.block, label %vector.body, !llvm.loop !3
+
+middle.block:                                     ; preds = %vector.body
+  %bin.rdx = or <2 x i64> %14, %13
+  %16 = tail call i64 @llvm.vector.reduce.or.v2i64(<2 x i64> %bin.rdx)
+  br label %bb13.preheader
+
+bb13.preheader:                                   ; preds = %bb8, %middle.block
+  %packed.sroa.0.023.ph = phi i64 [ 0, %bb8 ], [ %16, %middle.block ]
+  %iter1.sroa.0.022.ph = phi i64 [ 0, %bb8 ], [ %n.vec, %middle.block ]
+  br label %bb13
+
+bb9:                                              ; preds = %bb14, %bb5.preheader.split
+  ret void
+
+bb13:                                             ; preds = %bb13.preheader, %bb15
+  %packed.sroa.0.023 = phi i64 [ %19, %bb15 ], [ %packed.sroa.0.023.ph, %bb13.preheader ]
+  %iter1.sroa.0.022 = phi i64 [ %_0.i1.i.i11, %bb15 ], [ %iter1.sroa.0.022.ph, %bb13.preheader ]
+  %_29 = add nuw nsw i64 %iter1.sroa.0.022, %_30
+  %_32 = icmp ult i64 %_29, %src.1
+  br i1 %_32, label %bb15, label %panic2
+
+bb14:                                             ; preds = %bb15
+  %17 = getelementptr inbounds nuw [8 x i8], ptr %dst.0, i64 %iter.sroa.0.025
+  store i64 %19, ptr %17, align 8
+  %exitcond27.not = icmp eq i64 %_0.i1.i.i, %chunks4
+  br i1 %exitcond27.not, label %bb9, label %bb8
+
+bb15:                                             ; preds = %bb13
+  %_0.i1.i.i11 = add nuw nsw i64 %iter1.sroa.0.022, 1
+  %18 = getelementptr inbounds nuw i8, ptr %src.0, i64 %_29
+  %_28 = load i8, ptr %18, align 1
+  %_27 = icmp ne i8 %_28, 0
+  %_26 = zext i1 %_27 to i64
+  %_25 = shl nuw i64 %_26, %iter1.sroa.0.022
+  %19 = or i64 %_25, %packed.sroa.0.023
+  %exitcond.not = icmp eq i64 %_0.i1.i.i11, 64
+  br i1 %exitcond.not, label %bb14, label %bb13, !llvm.loop !6
+
+panic2:                                           ; preds = %bb13
+  tail call void @_ZN4core9panicking18panic_bounds_check17h9ae613628793029fE(i64 %_29, i64 %src.1, ptr nonnull align 8 @alloc_f8b5cd2d0201c42fe0e3a94f0cc4a75a) #6
+  unreachable
+}

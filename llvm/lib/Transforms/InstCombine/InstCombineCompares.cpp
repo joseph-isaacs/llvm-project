@@ -7462,6 +7462,72 @@ static Instruction *foldVectorCmp(CmpInst &Cmp,
   return nullptr;
 }
 
+/// Canonicalize the idiom that unpacks a scalar bit mask into a vector of
+/// booleans by testing each bit of a broadcast scalar against a constant
+/// vector of one-bit-set values ("inverse movemask"):
+///   icmp ne (and (splat X), <1, 2, 4, ..., 2^(N-1)>), zero
+///     --> bitcast (trunc X to iN) to <N x i1>
+/// The same fold applies to the equivalent form that compares against the
+/// bit constants themselves:
+///   icmp eq (and (splat X), <1, 2, 4, ...>), <1, 2, 4, ...>
+/// Comparing with the inverse predicate yields the inverted mask, folded to
+/// a 'not' of the bitcast.
+///
+/// This shrinks the expansion and, more importantly, lets a mask that was
+/// packed into an integer and immediately unpacked again (common after
+/// inlining movemask-style code) cancel with the preceding
+/// bitcast <N x i1> --> iN.
+static Instruction *canonicalizeBoolVectorUnpack(ICmpInst &Cmp,
+                                                 const DataLayout &DL,
+                                                 InstCombiner::BuilderTy &Builder) {
+  if (!Cmp.isEquality())
+    return nullptr;
+
+  auto *VecTy = dyn_cast<FixedVectorType>(Cmp.getOperand(0)->getType());
+  if (!VecTy || !VecTy->getElementType()->isIntegerTy())
+    return nullptr;
+
+  Value *Splat;
+  Constant *MaskC;
+  if (!match(Cmp.getOperand(0),
+             m_OneUse(m_And(m_Value(Splat), m_Constant(MaskC)))))
+    return nullptr;
+
+  // A set bit in the broadcast scalar means 'true' if each lane is required
+  // to be non-zero, or all of MaskC's bits within the lane to be set (the
+  // lanes are single-bit masks, so those are equivalent).
+  bool SetMeansTrue;
+  if (match(Cmp.getOperand(1), m_Zero()))
+    SetMeansTrue = Cmp.getPredicate() == ICmpInst::ICMP_NE;
+  else if (Cmp.getOperand(1) == MaskC)
+    SetMeansTrue = Cmp.getPredicate() == ICmpInst::ICMP_EQ;
+  else
+    return nullptr;
+
+  // Lane I must test the bit of the broadcast scalar that a bitcast from iN
+  // to <N x i1> assigns to lane I, which depends on endianness.
+  unsigned NumElts = VecTy->getNumElements();
+  unsigned EltWidth = VecTy->getScalarSizeInBits();
+  if (NumElts > EltWidth)
+    return nullptr;
+  for (unsigned I = 0; I != NumElts; ++I) {
+    auto *EltC = dyn_cast_or_null<ConstantInt>(MaskC->getAggregateElement(I));
+    unsigned BitIdx = DL.isLittleEndian() ? I : NumElts - 1 - I;
+    if (!EltC || EltC->getValue() != APInt::getOneBitSet(EltWidth, BitIdx))
+      return nullptr;
+  }
+
+  Value *X = getSplatValue(Splat);
+  if (!X || !Splat->hasOneUse())
+    return nullptr;
+
+  Value *Trunc = Builder.CreateTrunc(X, Builder.getIntNTy(NumElts));
+  auto *BoolVecTy = FixedVectorType::get(Builder.getInt1Ty(), NumElts);
+  if (SetMeansTrue)
+    return new BitCastInst(Trunc, BoolVecTy);
+  return BinaryOperator::CreateNot(Builder.CreateBitCast(Trunc, BoolVecTy));
+}
+
 // extract(uadd.with.overflow(A, B), 0) ult A
 //  -> extract(uadd.with.overflow(A, B), 1)
 static Instruction *foldICmpOfUAddOv(ICmpInst &I) {
@@ -8100,9 +8166,13 @@ Instruction *InstCombinerImpl::visitICmpInst(ICmpInst &I) {
   if (Instruction *Res = foldICmpWithHighBitMask(I, Builder))
     return Res;
 
-  if (I.getType()->isVectorTy())
+  if (I.getType()->isVectorTy()) {
     if (Instruction *Res = foldVectorCmp(I, Builder))
       return Res;
+
+    if (Instruction *Res = canonicalizeBoolVectorUnpack(I, DL, Builder))
+      return Res;
+  }
 
   if (Instruction *Res = foldICmpInvariantGroup(I))
     return Res;

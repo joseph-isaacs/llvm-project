@@ -26167,7 +26167,8 @@ static bool getBoolVectorBitcastCompare(SDValue Vec, SDValue RHS,
 // iN, we can use a trick that extracts the i^th bit from the i^th element and
 // then performs a vector add to get a scalar bitmask. This requires that each
 // element's bits are either all 1 or all 0.
-static SDValue vectorToScalarBitmask(SDNode *N, SelectionDAG &DAG) {
+static SDValue vectorToScalarBitmask(SDNode *N, SelectionDAG &DAG,
+                                     bool AllowNarrowing = false) {
   SDLoc DL(N);
   SDValue ComparisonResult(N, 0);
   EVT VecVT = ComparisonResult.getValueType();
@@ -26192,11 +26193,24 @@ static SDValue vectorToScalarBitmask(SDNode *N, SelectionDAG &DAG) {
   }
   VecVT = VecVT.changeVectorElementTypeToInteger();
 
-  // Large vectors don't map directly to this conversion, so to avoid too many
-  // edge cases, we don't apply it here. The conversion will likely still be
-  // applied later via multiple smaller vectors, whose results are concatenated.
-  if (VecVT.getSizeInBits() > 128)
-    return SDValue();
+  // Large vectors don't map directly to this conversion. For the store path we
+  // bail and let the value be split into smaller vectors that are concatenated.
+  // For the scalar-bitcast path (AllowNarrowing) there is no later split for
+  // the scalar result, so bailing falls through to the generic
+  // bitcast-through-memory legalization: store the mask to a stack temporary
+  // and reload it as the scalar. A later combine removes those memory accesses
+  // but leaves the stack slot behind in MachineFrameInfo, producing a dead
+  // frame. Instead narrow the per-lane integer width (the lane *count*, and so
+  // the bitmask, is unchanged) so the whole vector fits in 128 bits. The
+  // weights 1<<i still fit: at most 16 lanes here, so >= 8-bit lanes.
+  if (VecVT.getSizeInBits() > 128) {
+    if (!AllowNarrowing)
+      return SDValue();
+    unsigned NarrowedEltBits = 128 / NumElts;
+    if (NarrowedEltBits < 8)
+      return SDValue();
+    VecVT = MVT::getVectorVT(MVT::getIntegerVT(NarrowedEltBits), NumElts);
+  }
 
   // Ensure that all elements' bits are either 0s or 1s.
   ComparisonResult = DAG.getSExtOrTrunc(ComparisonResult, DL, VecVT);
@@ -30254,7 +30268,8 @@ static void replaceBoolVectorBitcast(SDNode *N,
       Op = Op.getOperand(0);
   }
 
-  SDValue VectorBits = vectorToScalarBitmask(Op.getNode(), DAG);
+  SDValue VectorBits =
+      vectorToScalarBitmask(Op.getNode(), DAG, /*AllowNarrowing=*/true);
   if (VectorBits)
     Results.push_back(DAG.getZExtOrTrunc(VectorBits, DL, VT));
 }

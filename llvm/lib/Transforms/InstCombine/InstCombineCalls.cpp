@@ -1715,6 +1715,112 @@ static Value *simplifyReductionOperand(Value *Arg, bool CanReorderLanes) {
   return UsedIndices.all() ? V : nullptr;
 }
 
+/// Return true iff fixed integer vector constant \p C has lane I equal to
+/// `1 << I` (\p IsRamp == false) or to `I` (\p IsRamp == true) for all \p N
+/// lanes.
+static bool isBitPositionWeights(Constant *C, unsigned N, unsigned EltBits,
+                                 bool IsRamp) {
+  for (unsigned I = 0; I != N; ++I) {
+    auto *CI = dyn_cast_or_null<ConstantInt>(C->getAggregateElement(I));
+    // `1 << I` fits because the caller guarantees EltBits >= N > I.
+    if (!CI ||
+        CI->getValue() != (IsRamp ? APInt(EltBits, I) : APInt(EltBits, 1) << I))
+      return false;
+  }
+  return true;
+}
+
+/// If \p V computes, for some `<N x i1>` mask %m, the per-lane value
+/// `%m[i] ? (1 << i) : 0` (or `%m[i] ? 0 : (1 << i)`, setting \p Invert),
+/// return %m, else nullptr.  Matches the shapes the vectorizers emit for a
+/// compare->bitmask ("movemask") bit-pack.
+static Value *matchBitPositionWeightedMask(Value *V, bool &Invert) {
+  auto *VecTy = dyn_cast<FixedVectorType>(V->getType());
+  if (!VecTy || !VecTy->getElementType()->isIntegerTy())
+    return nullptr;
+  unsigned N = VecTy->getNumElements();
+  unsigned EltBits = VecTy->getScalarSizeInBits();
+  // Lane i contributes bit i, so the widest weight `1 << (N-1)` must fit.
+  if (N < 2 || EltBits < N)
+    return nullptr;
+
+  auto IsI1Mask = [&](Value *M) {
+    auto *MTy = dyn_cast<FixedVectorType>(M->getType());
+    return MTy && MTy->getElementType()->isIntegerTy(1) &&
+           MTy->getNumElements() == N;
+  };
+
+  Value *M;
+  Constant *C;
+  // select %m, <1, 2, 4, ...>, zeroinitializer
+  if (match(V, m_Select(m_Value(M), m_Constant(C), m_Zero())) ||
+      // and (sext %m), <1, 2, 4, ...>
+      match(V, m_c_And(m_SExt(m_Value(M)), m_Constant(C))) ||
+      // mul (zext %m), <1, 2, 4, ...>
+      match(V, m_c_Mul(m_ZExt(m_Value(M)), m_Constant(C))))
+    if (IsI1Mask(M) && isBitPositionWeights(C, N, EltBits, /*IsRamp=*/false))
+      return M;
+  // shl (zext %m), <0, 1, 2, ...>
+  if (match(V, m_Shl(m_ZExt(m_Value(M)), m_Constant(C))))
+    if (IsI1Mask(M) && isBitPositionWeights(C, N, EltBits, /*IsRamp=*/true))
+      return M;
+  // select %m, zeroinitializer, <1, 2, 4, ...> -- inverted arms, the shape
+  // InstCombine's own icmp eq/ne canonicalization leaves behind for
+  // compare-fed masks (the select arms are swapped together with the
+  // predicate).
+  if (match(V, m_Select(m_Value(M), m_Zero(), m_Constant(C))))
+    if (IsI1Mask(M) && isBitPositionWeights(C, N, EltBits, /*IsRamp=*/false)) {
+      Invert = true;
+      return M;
+    }
+  return nullptr;
+}
+
+/// Recognize the compare->bitmask ("movemask" / bit-pack) idiom that the
+/// vectorizers emit (see llvm/llvm-project#121691):
+///
+///   reduce.or  ( select %m, <1, 2, 4, ..., 2^(N-1)>, zeroinitializer )
+///   reduce.or  ( shl (zext %m), <0, 1, 2, ..., N-1> )
+///   reduce.or  ( and (sext %m), <1, 2, 4, ...> )
+///   reduce.or  ( mul (zext %m), <1, 2, 4, ...> )
+///
+/// (and the reduce.add / reduce.xor variants -- equivalent because the lane
+/// contributions occupy disjoint bits) and fold it to
+///
+///   zext (bitcast <N x i1> %m to iN)
+///
+/// which is the canonical scalar form of a bool-vector reduction (see the
+/// reduce.{or,and,add,xor}-of-i1 folds below) and lowers to a movemask on
+/// targets that have one.
+static Value *
+foldBitPositionWeightedMaskReduction(IntrinsicInst *II,
+                                     InstCombiner::BuilderTy &Builder,
+                                     const DataLayout &DL) {
+  // The lane i -> bit i mapping of `bitcast <N x i1> to iN` only holds on
+  // little-endian targets (big-endian would need a bitreverse).
+  if (DL.isBigEndian())
+    return nullptr;
+
+  Value *Arg = II->getArgOperand(0);
+  // The weighted vector must die for this to be a simplification.
+  if (!Arg->hasOneUse())
+    return nullptr;
+
+  bool Invert = false;
+  Value *Mask = matchBitPositionWeightedMask(Arg, Invert);
+  if (!Mask)
+    return nullptr;
+
+  // For the inverted form lane i contributes bit i when %m[i] is *false*; the
+  // not folds back into the mask's compare when there is one.
+  if (Invert)
+    Mask = Builder.CreateNot(Mask);
+
+  unsigned N = cast<FixedVectorType>(Mask->getType())->getNumElements();
+  Value *Bits = Builder.CreateBitCast(Mask, Builder.getIntNTy(N));
+  return Builder.CreateZExt(Bits, II->getType());
+}
+
 /// Fold an unsigned minimum of trailing or leading zero bits counts:
 ///   umin(cttz(CtOp1, ZeroUndef), ConstOp) --> cttz(CtOp1 | (1 << ConstOp))
 ///   umin(ctlz(CtOp1, ZeroUndef), ConstOp) --> ctlz(CtOp1 | (SignedMin
@@ -3996,6 +4102,10 @@ Instruction *InstCombinerImpl::visitCallInst(CallInst &CI) {
       return II;
     }
 
+    if (IID == Intrinsic::vector_reduce_or)
+      if (Value *Res = foldBitPositionWeightedMaskReduction(II, Builder, DL))
+        return replaceInstUsesWith(CI, Res);
+
     if (match(Arg, m_ZExtOrSExtOrSelf(m_Value(Vect)))) {
       if (auto *FTy = dyn_cast<FixedVectorType>(Vect->getType()))
         if (FTy->getElementType() == Builder.getInt1Ty()) {
@@ -4033,6 +4143,9 @@ Instruction *InstCombinerImpl::visitCallInst(CallInst &CI) {
         replaceUse(II->getOperandUse(0), NewOp);
         return II;
       }
+
+      if (Value *Res = foldBitPositionWeightedMaskReduction(II, Builder, DL))
+        return replaceInstUsesWith(CI, Res);
 
       // vector.reduce.add.vNiM(splat(%x)) -> mul(%x, N)
       if (Value *Splat = getSplatValue(Arg)) {
@@ -4080,6 +4193,9 @@ Instruction *InstCombinerImpl::visitCallInst(CallInst &CI) {
         replaceUse(II->getOperandUse(0), NewOp);
         return II;
       }
+
+      if (Value *Res = foldBitPositionWeightedMaskReduction(II, Builder, DL))
+        return replaceInstUsesWith(CI, Res);
 
       if (match(Arg, m_ZExtOrSExtOrSelf(m_Value(Vect)))) {
         if (auto *VTy = dyn_cast<VectorType>(Vect->getType()))

@@ -75,8 +75,7 @@ entry:
 define i8 @pack8_vector_ir(<8 x i1> %m) {
 ; CHECK-LABEL: @pack8_vector_ir(
 ; CHECK-NEXT:  entry:
-; CHECK-NEXT:    [[SEL:%.*]] = select <8 x i1> [[M:%.*]], <8 x i8> <i8 1, i8 2, i8 4, i8 8, i8 16, i8 32, i8 64, i8 -128>, <8 x i8> zeroinitializer
-; CHECK-NEXT:    [[R:%.*]] = tail call i8 @llvm.vector.reduce.or.v8i8(<8 x i8> [[SEL]])
+; CHECK-NEXT:    [[R:%.*]] = bitcast <8 x i1> [[M:%.*]] to i8
 ; CHECK-NEXT:    ret i8 [[R]]
 ;
 entry:
@@ -88,8 +87,7 @@ entry:
 define i8 @pack8_vector_ir_shl(<8 x i1> %m) {
 ; CHECK-LABEL: @pack8_vector_ir_shl(
 ; CHECK-NEXT:  entry:
-; CHECK-NEXT:    [[SHL:%.*]] = select <8 x i1> [[M:%.*]], <8 x i8> <i8 1, i8 2, i8 4, i8 8, i8 16, i8 32, i8 64, i8 -128>, <8 x i8> zeroinitializer
-; CHECK-NEXT:    [[R:%.*]] = tail call i8 @llvm.vector.reduce.or.v8i8(<8 x i8> [[SHL]])
+; CHECK-NEXT:    [[R:%.*]] = bitcast <8 x i1> [[M:%.*]] to i8
 ; CHECK-NEXT:    ret i8 [[R]]
 ;
 entry:
@@ -105,9 +103,8 @@ define i8 @pack8_vector_ir_cmp(ptr %p) {
 ; CHECK-LABEL: @pack8_vector_ir_cmp(
 ; CHECK-NEXT:  entry:
 ; CHECK-NEXT:    [[V:%.*]] = load <8 x i8>, ptr [[P:%.*]], align 1
-; CHECK-NEXT:    [[M_NOT:%.*]] = icmp eq <8 x i8> [[V]], zeroinitializer
-; CHECK-NEXT:    [[SEL:%.*]] = select <8 x i1> [[M_NOT]], <8 x i8> zeroinitializer, <8 x i8> <i8 1, i8 2, i8 4, i8 8, i8 16, i8 32, i8 64, i8 -128>
-; CHECK-NEXT:    [[R:%.*]] = tail call i8 @llvm.vector.reduce.or.v8i8(<8 x i8> [[SEL]])
+; CHECK-NEXT:    [[M_NOT:%.*]] = icmp ne <8 x i8> [[V]], zeroinitializer
+; CHECK-NEXT:    [[R:%.*]] = bitcast <8 x i1> [[M_NOT]] to i8
 ; CHECK-NEXT:    ret i8 [[R]]
 ;
 entry:

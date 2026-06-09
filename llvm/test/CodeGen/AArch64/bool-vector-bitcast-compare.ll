@@ -67,7 +67,7 @@ define i64 @match_any_byte_16(<16 x i8> %haystack, i8 %needle) {
 ; CHECK-NEXT:    dup v1.16b, w0
 ; CHECK-NEXT:    mov w8, #999 // =0x3e7
 ; CHECK-NEXT:    cmeq v0.16b, v0.16b, v1.16b
-; CHECK-NEXT:    addp d0, v0.2d
+; CHECK-NEXT:    shrn v0.8b, v0.8h, #4
 ; CHECK-NEXT:    fmov x9, d0
 ; CHECK-NEXT:    cmp x9, #0
 ; CHECK-NEXT:    mov w9, #777 // =0x309
@@ -89,9 +89,9 @@ define i64 @match_all_byte_16(<16 x i8> %haystack, i8 %needle) {
 ; CHECK-NEXT:    dup v1.16b, w0
 ; CHECK-NEXT:    mov w8, #999 // =0x3e7
 ; CHECK-NEXT:    cmeq v0.16b, v0.16b, v1.16b
-; CHECK-NEXT:    addp d0, v0.2d
+; CHECK-NEXT:    shrn v0.8b, v0.8h, #4
 ; CHECK-NEXT:    fmov x9, d0
-; CHECK-NEXT:    cmn x9, #2
+; CHECK-NEXT:    cmn x9, #1
 ; CHECK-NEXT:    mov w9, #777 // =0x309
 ; CHECK-NEXT:    csel x0, x9, x8, eq
 ; CHECK-NEXT:    ret
@@ -111,9 +111,9 @@ define i64 @match_not_all_byte_16(<16 x i8> %haystack, i8 %needle) {
 ; CHECK-NEXT:    dup v1.16b, w0
 ; CHECK-NEXT:    mov w8, #999 // =0x3e7
 ; CHECK-NEXT:    cmeq v0.16b, v0.16b, v1.16b
-; CHECK-NEXT:    addp d0, v0.2d
+; CHECK-NEXT:    shrn v0.8b, v0.8h, #4
 ; CHECK-NEXT:    fmov x9, d0
-; CHECK-NEXT:    cmn x9, #2
+; CHECK-NEXT:    cmn x9, #1
 ; CHECK-NEXT:    mov w9, #777 // =0x309
 ; CHECK-NEXT:    csel x0, x9, x8, ne
 ; CHECK-NEXT:    ret
@@ -132,9 +132,9 @@ define i1 @match_all_i64_2(<2 x i64> %haystack, i64 %needle) {
 ; CHECK:       // %bb.0: // %bb1
 ; CHECK-NEXT:    dup v1.2d, x0
 ; CHECK-NEXT:    cmeq v0.2d, v0.2d, v1.2d
-; CHECK-NEXT:    addp d0, v0.2d
+; CHECK-NEXT:    xtn v0.8b, v0.8h
 ; CHECK-NEXT:    fmov x8, d0
-; CHECK-NEXT:    cmn x8, #2
+; CHECK-NEXT:    cmn x8, #1
 ; CHECK-NEXT:    cset w0, eq
 ; CHECK-NEXT:    ret
 bb1:

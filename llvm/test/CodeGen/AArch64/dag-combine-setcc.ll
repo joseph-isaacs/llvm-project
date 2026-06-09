@@ -19,7 +19,7 @@ define i1 @combine_setcc_eq_vecreduce_or_v16i1(<16 x i8> %a) {
 ; CHECK-LABEL: combine_setcc_eq_vecreduce_or_v16i1:
 ; CHECK:       // %bb.0:
 ; CHECK-NEXT:    cmeq v0.16b, v0.16b, #0
-; CHECK-NEXT:    addp d0, v0.2d
+; CHECK-NEXT:    shrn v0.8b, v0.8h, #4
 ; CHECK-NEXT:    fmov x8, d0
 ; CHECK-NEXT:    cmp x8, #0
 ; CHECK-NEXT:    cset w0, eq
@@ -86,7 +86,7 @@ define i1 @combine_setcc_ne_vecreduce_or_v16i1(<16 x i8> %a) {
 ; CHECK-LABEL: combine_setcc_ne_vecreduce_or_v16i1:
 ; CHECK:       // %bb.0:
 ; CHECK-NEXT:    cmtst v0.16b, v0.16b, v0.16b
-; CHECK-NEXT:    addp d0, v0.2d
+; CHECK-NEXT:    shrn v0.8b, v0.8h, #4
 ; CHECK-NEXT:    fmov x8, d0
 ; CHECK-NEXT:    cmp x8, #0
 ; CHECK-NEXT:    cset w0, ne
@@ -147,9 +147,9 @@ define i1 @combine_setcc_eq_vecreduce_and_v16i1(<16 x i8> %a) {
 ; CHECK-LABEL: combine_setcc_eq_vecreduce_and_v16i1:
 ; CHECK:       // %bb.0:
 ; CHECK-NEXT:    cmeq v0.16b, v0.16b, #0
-; CHECK-NEXT:    addp d0, v0.2d
+; CHECK-NEXT:    shrn v0.8b, v0.8h, #4
 ; CHECK-NEXT:    fmov x8, d0
-; CHECK-NEXT:    cmn x8, #2
+; CHECK-NEXT:    cmn x8, #1
 ; CHECK-NEXT:    cset w0, eq
 ; CHECK-NEXT:    ret
   %cmp1 = icmp eq <16 x i8> %a, zeroinitializer
@@ -208,9 +208,9 @@ define i1 @combine_setcc_ne_vecreduce_and_v16i1(<16 x i8> %a) {
 ; CHECK-LABEL: combine_setcc_ne_vecreduce_and_v16i1:
 ; CHECK:       // %bb.0:
 ; CHECK-NEXT:    cmtst v0.16b, v0.16b, v0.16b
-; CHECK-NEXT:    addp d0, v0.2d
+; CHECK-NEXT:    shrn v0.8b, v0.8h, #4
 ; CHECK-NEXT:    fmov x8, d0
-; CHECK-NEXT:    cmn x8, #2
+; CHECK-NEXT:    cmn x8, #1
 ; CHECK-NEXT:    cset w0, ne
 ; CHECK-NEXT:    ret
   %cmp1 = icmp ne <16 x i8> %a, zeroinitializer

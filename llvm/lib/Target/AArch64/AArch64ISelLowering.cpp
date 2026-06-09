@@ -1187,6 +1187,8 @@ AArch64TargetLowering::AArch64TargetLowering(const TargetMachine &TM,
 
   setTargetDAGCombine(ISD::CTLZ);
 
+  setTargetDAGCombine({ISD::CTTZ, ISD::CTTZ_ZERO_POISON});
+
   setTargetDAGCombine(ISD::GET_ACTIVE_LANE_MASK);
 
   setTargetDAGCombine(ISD::VECREDUCE_AND);
@@ -26101,13 +26103,11 @@ static EVT tryGetOriginalBoolVectorType(SDValue Op, int Depth = 0) {
   return BaseVT;
 }
 
-static bool getBoolVectorBitcastCompare(SDValue Vec, SDValue RHS,
-                                        const SDLoc &DL, SelectionDAG &DAG,
-                                        SDValue &CompareLHS,
-                                        SDValue &CompareRHS) {
-  if (DAG.getDataLayout().isBigEndian())
-    return false;
-
+// Widen a fixed-length bool vector to a 64- or 128-bit integer mask vector
+// whose lanes are all-zeros or all-ones, preferring the type of the original
+// comparison the bool vector was created from.
+static SDValue widenBoolVectorMask(SDValue Vec, const SDLoc &DL,
+                                   SelectionDAG &DAG) {
   EVT VecVT = Vec.getValueType();
   assert(VecVT.isFixedLengthVector() &&
          VecVT.getVectorElementType() == MVT::i1 &&
@@ -26115,7 +26115,7 @@ static bool getBoolVectorBitcastCompare(SDValue Vec, SDValue RHS,
 
   unsigned NumElts = VecVT.getVectorNumElements();
   if (NumElts != 2 && NumElts != 4 && NumElts != 8 && NumElts != 16)
-    return false;
+    return SDValue();
 
   auto getCanonicalCompareVecVT = [&]() {
     unsigned BitsPerElement = std::max(64 / NumElts, 8u);
@@ -26129,37 +26129,91 @@ static bool getBoolVectorBitcastCompare(SDValue Vec, SDValue RHS,
   CompareVecVT = CompareVecVT.changeVectorElementTypeToInteger();
 
   if (CompareVecVT.getSizeInBits() > 128)
-    return false;
+    return SDValue();
 
   SDValue CompareBits = DAG.getSExtOrTrunc(Vec, DL, CompareVecVT);
-  unsigned CompareBitsSize = CompareBits.getValueSizeInBits();
 
   // Use a canonical 64/128-bit vector representation before bitcasting to a
   // scalar view. Some legal original vector types are smaller than 64-bit,
   // which would make the direct scalar bitcasts below invalid.
-  if (CompareBitsSize != 64 && CompareBitsSize != 128) {
+  if (CompareBits.getValueSizeInBits() != 64 &&
+      CompareBits.getValueSizeInBits() != 128) {
     CompareVecVT = getCanonicalCompareVecVT();
     CompareBits = DAG.getSExtOrTrunc(Vec, DL, CompareVecVT);
-    CompareBitsSize = CompareBits.getValueSizeInBits();
   }
 
-  if (CompareBitsSize != 64 && CompareBitsSize != 128)
+  if (CompareBits.getValueSizeInBits() != 64 &&
+      CompareBits.getValueSizeInBits() != 128)
+    return SDValue();
+
+  return CompareBits;
+}
+
+// Return a 64-bit scalar view of a bool vector, where lane i occupies the
+// BitsPerLane identical bits starting at bit i * BitsPerLane. 128-bit masks
+// are narrowed to 64 bits with a single SHRN #4, which packs each byte of
+// the mask into a nibble (so this requires NEON).
+static SDValue getBoolVectorScalarView(SDValue Vec, const SDLoc &DL,
+                                       SelectionDAG &DAG,
+                                       unsigned &BitsPerLane) {
+  if (DAG.getDataLayout().isBigEndian())
+    return SDValue();
+
+  SDValue MaskBits = widenBoolVectorMask(Vec, DL, DAG);
+  if (!MaskBits)
+    return SDValue();
+
+  if (MaskBits.getValueSizeInBits() == 128) {
+    if (!DAG.getSubtarget<AArch64Subtarget>().isNeonAvailable())
+      return SDValue();
+
+    // Viewed as v8i16, shifting right by 4 and truncating to v8i8 (a single
+    // SHRN) maps each byte of the mask to a nibble with the same
+    // all-zeros/all-ones value, halving the mask without reordering it.
+    SDValue Bits16 = DAG.getBitcast(MVT::v8i16, MaskBits);
+    SDValue Shifted = DAG.getNode(ISD::SRL, DL, MVT::v8i16, Bits16,
+                                  DAG.getConstant(4, DL, MVT::v8i16));
+    MaskBits = DAG.getNode(ISD::TRUNCATE, DL, MVT::v8i8, Shifted);
+  }
+
+  BitsPerLane = 64 / Vec.getValueType().getVectorNumElements();
+  return DAG.getBitcast(MVT::i64, MaskBits);
+}
+
+static bool getBoolVectorBitcastCompare(SDValue Vec, SDValue RHS,
+                                        const SDLoc &DL, SelectionDAG &DAG,
+                                        SDValue &CompareLHS,
+                                        SDValue &CompareRHS) {
+  if (DAG.getDataLayout().isBigEndian())
     return false;
 
   bool IsNull = isNullConstant(RHS);
-  if (CompareBitsSize == 64) {
-    CompareLHS = DAG.getBitcast(MVT::i64, CompareBits);
+
+  // Prefer a 64-bit scalar view of the mask: it needs a single transfer to a
+  // GPR, and other scalar users of the same mask (e.g. a first-set-lane
+  // computation) share the same view.
+  unsigned BitsPerLane;
+  if (SDValue ScalarView = getBoolVectorScalarView(Vec, DL, DAG, BitsPerLane)) {
+    CompareLHS = ScalarView;
     CompareRHS = IsNull ? DAG.getConstant(0, DL, MVT::i64)
                         : DAG.getAllOnesConstant(DL, MVT::i64);
-  } else {
-    SDValue PairwiseBits = DAG.getBitcast(MVT::v2i64, CompareBits);
-    SDValue Lo = DAG.getExtractVectorElt(DL, MVT::i64, PairwiseBits, 0);
-    SDValue Hi = DAG.getExtractVectorElt(DL, MVT::i64, PairwiseBits, 1);
-    CompareLHS = DAG.getNode(ISD::ADD, DL, MVT::i64, Lo, Hi);
-    CompareRHS = IsNull ? DAG.getConstant(0, DL, MVT::i64)
-                        : DAG.getSignedConstant(-2, DL, MVT::i64);
+    return true;
   }
 
+  // A 128-bit mask cannot be narrowed without NEON, but for a pure
+  // zero/all-ones test it is enough to add the two 64-bit halves: no
+  // combination of all-zeros/all-ones bytes other than 0 + 0 sums to zero,
+  // and only -1 + -1 sums to -2.
+  SDValue MaskBits = widenBoolVectorMask(Vec, DL, DAG);
+  if (!MaskBits || MaskBits.getValueSizeInBits() != 128)
+    return false;
+
+  SDValue PairwiseBits = DAG.getBitcast(MVT::v2i64, MaskBits);
+  SDValue Lo = DAG.getExtractVectorElt(DL, MVT::i64, PairwiseBits, 0);
+  SDValue Hi = DAG.getExtractVectorElt(DL, MVT::i64, PairwiseBits, 1);
+  CompareLHS = DAG.getNode(ISD::ADD, DL, MVT::i64, Lo, Hi);
+  CompareRHS = IsNull ? DAG.getConstant(0, DL, MVT::i64)
+                      : DAG.getSignedConstant(-2, DL, MVT::i64);
   return true;
 }
 
@@ -28598,6 +28652,46 @@ static SDValue performCTLZCombine(SDNode *N, SelectionDAG &DAG,
   return DAG.getNode(ISD::CTTZ, DL, BR.getValueType(), BR.getOperand(0));
 }
 
+// Replace cttz(bitcast <N x i1>) with a cttz on a 64-bit scalar view of the
+// mask, where each lane occupies BitsPerLane identical bits: the index of
+// the first set lane is then cttz(view) / BitsPerLane. This also holds for
+// an all-zero mask, where it yields 64 / BitsPerLane == N. This avoids
+// materializing the packed bitmask (constant load, AND, ADDP chain) when
+// the mask is only scanned for its first set lane, and the scalar view is
+// shared with any zero/all-ones test of the same mask.
+static SDValue performCTTZCombine(SDNode *N,
+                                  TargetLowering::DAGCombinerInfo &DCI,
+                                  SelectionDAG &DAG) {
+  if (!DCI.isBeforeLegalize())
+    return SDValue();
+
+  SDValue Src = N->getOperand(0);
+  // An extension changes the result for a zero input, so looking through
+  // one is only safe when cttz of zero is poison.
+  if (N->getOpcode() == ISD::CTTZ_ZERO_POISON &&
+      (Src.getOpcode() == ISD::ZERO_EXTEND ||
+       Src.getOpcode() == ISD::ANY_EXTEND))
+    Src = Src.getOperand(0);
+
+  if (Src.getOpcode() != ISD::BITCAST)
+    return SDValue();
+  SDValue Mask = Src.getOperand(0);
+  if (!Mask.getValueType().isFixedLengthVectorOf(MVT::i1))
+    return SDValue();
+
+  SDLoc DL(N);
+  unsigned BitsPerLane;
+  SDValue ScalarView = getBoolVectorScalarView(Mask, DL, DAG, BitsPerLane);
+  if (!ScalarView)
+    return SDValue();
+
+  SDValue Cttz = DAG.getNode(ISD::CTTZ, DL, MVT::i64, ScalarView);
+  SDValue Index = DAG.getNode(ISD::SRL, DL, MVT::i64, Cttz,
+                              DAG.getConstant(Log2_32(BitsPerLane), DL,
+                                              MVT::i64));
+  return DAG.getZExtOrTrunc(Index, DL, N->getValueType(0));
+}
+
 // Turns the vector of indices into a vector of byte offstes by scaling Offset
 // by (BitWidth / 8).
 static SDValue getScaledOffsetForBitWidth(SelectionDAG &DAG, SDValue Offset,
@@ -30041,6 +30135,9 @@ SDValue AArch64TargetLowering::PerformDAGCombine(SDNode *N,
     return performGlobalAddressCombine(N, DAG, Subtarget, getTargetMachine());
   case ISD::CTLZ:
     return performCTLZCombine(N, DAG, Subtarget);
+  case ISD::CTTZ:
+  case ISD::CTTZ_ZERO_POISON:
+    return performCTTZCombine(N, DCI, DAG);
   case ISD::SCALAR_TO_VECTOR:
     return performScalarToVectorCombine(N, DCI, DAG);
   case ISD::SHL:

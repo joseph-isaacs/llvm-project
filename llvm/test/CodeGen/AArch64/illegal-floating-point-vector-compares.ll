@@ -33,7 +33,7 @@ define i1 @unordered_floating_point_compare_on_v16f32(<16 x float> %a_vec) {
 ; CHECK-NEXT:    uzp1 v0.8h, v0.8h, v1.8h
 ; CHECK-NEXT:    uzp1 v0.16b, v0.16b, v2.16b
 ; CHECK-NEXT:    mvn v0.16b, v0.16b
-; CHECK-NEXT:    addp d0, v0.2d
+; CHECK-NEXT:    shrn v0.8b, v0.8h, #4
 ; CHECK-NEXT:    fmov x8, d0
 ; CHECK-NEXT:    cmp x8, #0
 ; CHECK-NEXT:    cset w0, eq

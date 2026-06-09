@@ -17,7 +17,7 @@ define <4 x i32> @any_of_select_vf4(<4 x i32> %mask, <4 x i32> %a, <4 x i32> %b)
 ; CHECK-SD:       // %bb.0:
 ; CHECK-SD-NEXT:    cmlt v0.4s, v0.4s, #0
 ; CHECK-SD-NEXT:    movi d3, #0000000000000000
-; CHECK-SD-NEXT:    addp d0, v0.2d
+; CHECK-SD-NEXT:    xtn v0.8b, v0.8h
 ; CHECK-SD-NEXT:    cmeq v0.2d, v0.2d, v3.2d
 ; CHECK-SD-NEXT:    dup v0.2d, v0.d[0]
 ; CHECK-SD-NEXT:    bsl v0.16b, v1.16b, v2.16b
@@ -59,7 +59,7 @@ define <4 x i8> @any_of_select_v4i8(<4 x i32> %mask, <4 x i8> %a, <4 x i8> %b) {
 ; CHECK-SD:       // %bb.0:
 ; CHECK-SD-NEXT:    cmlt v0.4s, v0.4s, #0
 ; CHECK-SD-NEXT:    movi d3, #0000000000000000
-; CHECK-SD-NEXT:    addp d0, v0.2d
+; CHECK-SD-NEXT:    xtn v0.8b, v0.8h
 ; CHECK-SD-NEXT:    cmeq d0, d0, d3
 ; CHECK-SD-NEXT:    bsl v0.8b, v1.8b, v2.8b
 ; CHECK-SD-NEXT:    ret
@@ -111,7 +111,7 @@ define <2 x i64> @any_of_select_vf2(<2 x i64> %mask, <2 x i64> %a, <2 x i64> %b)
 ; CHECK:       // %bb.0:
 ; CHECK-NEXT:    cmlt v0.2d, v0.2d, #0
 ; CHECK-NEXT:    movi d3, #0000000000000000
-; CHECK-NEXT:    addp d0, v0.2d
+; CHECK-NEXT:    xtn v0.8b, v0.8h
 ; CHECK-NEXT:    cmeq v0.2d, v0.2d, v3.2d
 ; CHECK-NEXT:    dup v0.2d, v0.d[0]
 ; CHECK-NEXT:    bsl v0.16b, v1.16b, v2.16b

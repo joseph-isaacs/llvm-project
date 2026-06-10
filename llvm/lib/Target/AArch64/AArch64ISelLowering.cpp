@@ -26192,11 +26192,16 @@ static SDValue vectorToScalarBitmask(SDNode *N, SelectionDAG &DAG) {
   }
   VecVT = VecVT.changeVectorElementTypeToInteger();
 
-  // Large vectors don't map directly to this conversion, so to avoid too many
-  // edge cases, we don't apply it here. The conversion will likely still be
-  // applied later via multiple smaller vectors, whose results are concatenated.
-  if (VecVT.getSizeInBits() > 128)
-    return SDValue();
+  // The bitmask depends only on the lane count, not the lane width (sext to
+  // the source width is just a free-sext optimization), so when the preferred
+  // type exceeds 128 bits narrow the lanes to fill one 128-bit register
+  // instead of spilling through the stack.
+  if (VecVT.getSizeInBits() > 128) {
+    unsigned NarrowedEltBits = 128 / NumElts;
+    if (NarrowedEltBits < 8)
+      return SDValue();
+    VecVT = MVT::getVectorVT(MVT::getIntegerVT(NarrowedEltBits), NumElts);
+  }
 
   // Ensure that all elements' bits are either 0s or 1s.
   ComparisonResult = DAG.getSExtOrTrunc(ComparisonResult, DL, VecVT);

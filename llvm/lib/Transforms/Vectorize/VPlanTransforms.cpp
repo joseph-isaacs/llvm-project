@@ -5858,6 +5858,178 @@ VPlanTransforms::narrowInterleaveGroups(VPlan &Plan,
   return NewPlan;
 }
 
+std::unique_ptr<VPlan> VPlanTransforms::packCompareBitsToStores(VPlan &Plan) {
+  // Prototype restrictions: fixed VF equal to the interleave factor (8), so
+  // each consecutive VF-wide chunk of the input packs into exactly one output
+  // byte, and little-endian lane-to-bit order (checked by the caller's
+  // target via the BitPack bitcast semantics).
+  // TODO: Support VF > factor by packing each compare into iVF and casting
+  // the result vector to bytes, scalable VFs (SVE predicate stores), and
+  // other pack widths (i16/i32/i64 outputs).
+  constexpr unsigned Factor = 8;
+  ElementCount VF = ElementCount::getFixed(Factor);
+  if (!Plan.hasVF(VF))
+    return nullptr;
+
+  VPRegionBlock *VectorLoop = Plan.getVectorLoopRegion();
+  if (!VectorLoop ||
+      VectorLoop->getEntryBasicBlock() != VectorLoop->getExitingBasicBlock())
+    return nullptr;
+
+  struct Candidate {
+    VPInterleaveRecipe *Group;
+    SmallVector<VPWidenRecipe *, Factor> Cmps;
+    SmallVector<VPValue *, Factor> BitVals;
+    VPWidenStoreRecipe *Store;
+  };
+  SmallVector<Candidate> Candidates;
+
+  for (VPRecipeBase &R : *VectorLoop->getEntryBasicBlock()) {
+    auto *InterleaveR = dyn_cast<VPInterleaveRecipe>(&R);
+    // Only unmasked, full load groups of the right factor.
+    if (!InterleaveR || !InterleaveR->getStoredValues().empty() ||
+        InterleaveR->getMask() ||
+        InterleaveR->getInterleaveGroup()->getFactor() != Factor ||
+        !InterleaveR->getInterleaveGroup()->isFull())
+      continue;
+
+    Candidate C;
+    C.Group = InterleaveR;
+    bool Matched = true;
+    for (unsigned J = 0; J != Factor && Matched; ++J) {
+      // Member J must have a single user: a compare against a uniform value.
+      VPValue *Member = InterleaveR->getVPValue(J);
+      Matched = false;
+      if (Member->getNumUsers() != 1)
+        break;
+      auto *Cmp = dyn_cast<VPWidenRecipe>(*Member->user_begin());
+      if (!Cmp || Cmp->getOpcode() != Instruction::ICmp ||
+          Cmp->getOperand(0) != Member ||
+          !vputils::isSingleScalar(Cmp->getOperand(1)) ||
+          Cmp->getNumUsers() != 1)
+        break;
+
+      // The compare's single user must contribute bit J of the packed byte:
+      // either zext i1 (bit 0) or select(cmp, 1 << J, 0).
+      VPValue *BitVal = nullptr;
+      uint64_t Weight = 0;
+      VPRecipeBase *U = cast<VPRecipeBase>(*Cmp->user_begin());
+      if (auto *Cast = dyn_cast<VPWidenCastRecipe>(U)) {
+        if (Cast->getOpcode() == Instruction::ZExt) {
+          BitVal = Cast;
+          Weight = 1;
+        }
+      } else if (auto *Sel = dyn_cast<VPWidenRecipe>(U);
+                 Sel && Sel->getOpcode() == Instruction::Select) {
+        if (Sel->getOperand(0) == Cmp &&
+            match(Sel->getOperand(1), m_SpecificInt(1ull << J)) &&
+            match(Sel->getOperand(2), m_ZeroInt())) {
+          BitVal = Sel;
+          Weight = 1ull << J;
+        }
+      }
+      if (!BitVal || Weight != (1ull << J) || BitVal->getNumUsers() != 1 ||
+          !BitVal->getScalarType()->isIntegerTy(Factor))
+        break;
+
+      C.Cmps.push_back(Cmp);
+      C.BitVals.push_back(BitVal);
+      Matched = true;
+    }
+    if (!Matched)
+      continue;
+
+    // Ascend from the first packed bit to the root of the or-tree; its single
+    // user must be a consecutive, unmasked store of the packed bytes.
+    VPValue *Root = C.BitVals[0];
+    while (Root->getNumUsers() == 1) {
+      auto *Or = dyn_cast<VPWidenRecipe>(*Root->user_begin());
+      if (!Or || Or->getOpcode() != Instruction::Or)
+        break;
+      Root = Or;
+    }
+    if (Root->getNumUsers() != 1)
+      continue;
+    auto *Store = dyn_cast<VPWidenStoreRecipe>(*Root->user_begin());
+    if (!Store || !Store->isConsecutive() || Store->getMask() ||
+        Store->getStoredValue() != Root)
+      continue;
+
+    // The or-tree below Root must combine exactly the packed bits.
+    SmallPtrSet<VPValue *, Factor> Leaves;
+    SmallVector<VPValue *, Factor> Worklist({Root});
+    unsigned NumOrs = 0;
+    while (!Worklist.empty()) {
+      VPValue *V = Worklist.pop_back_val();
+      auto *Or = dyn_cast_or_null<VPWidenRecipe>(V->getDefiningRecipe());
+      if (Or && Or->getOpcode() == Instruction::Or &&
+          (V == Root || V->getNumUsers() == 1)) {
+        ++NumOrs;
+        Worklist.push_back(Or->getOperand(0));
+        Worklist.push_back(Or->getOperand(1));
+      } else {
+        Leaves.insert(V);
+      }
+    }
+    if (NumOrs != Factor - 1 || Leaves.size() != Factor ||
+        !all_of(C.BitVals, [&](VPValue *V) { return Leaves.contains(V); }))
+      continue;
+
+    C.Store = Store;
+    Candidates.push_back(C);
+  }
+  if (Candidates.empty())
+    return nullptr;
+
+  // Split the original Plan: the original keeps only the transformed VF, the
+  // returned clone keeps all remaining VFs.
+  std::unique_ptr<VPlan> NewPlan;
+  if (size(Plan.vectorFactors()) != 1) {
+    NewPlan = std::unique_ptr<VPlan>(Plan.duplicate());
+    Plan.setVF(VF);
+    NewPlan->removeVF(VF);
+  }
+
+  Type *I64Ty = Type::getInt64Ty(Plan.getContext());
+  for (Candidate &C : Candidates) {
+    auto *LI = cast<LoadInst>(C.Group->getInterleaveGroup()->getInsertPos());
+    VPValue *Addr = C.Group->getAddr();
+    unsigned EltBytes = LI->getType()->getScalarSizeInBits() / 8;
+    DebugLoc DL = C.Group->getDebugLoc();
+    VPBuilder Builder(C.Group);
+
+    // Replace the deinterleaved members with consecutive VF-wide chunks and
+    // re-point each compare at chunk J: output byte J's bits are exactly the
+    // compare results of elements [VF*J, VF*(J+1)) in memory order.
+    SmallVector<VPValue *, Factor> CmpVals;
+    for (unsigned J = 0; J != Factor; ++J) {
+      VPValue *AddrJ = Addr;
+      if (J != 0) {
+        VPValue *Off =
+            Plan.getOrAddLiveIn(ConstantInt::get(I64Ty, VF.getKnownMinValue() *
+                                                            J * EltBytes));
+        AddrJ = Builder.createPtrAdd(Addr, Off, DL);
+      }
+      auto *L =
+          new VPWidenLoadRecipe(*LI, AddrJ, /*Mask=*/nullptr,
+                                /*Consecutive=*/true, *C.Group, DL);
+      L->insertBefore(C.Group);
+      C.Cmps[J]->setOperand(0, L);
+      CmpVals.push_back(C.Cmps[J]);
+    }
+
+    auto *BP = new VPInstructionWithType(VPInstruction::BitPack, CmpVals,
+                                         C.BitVals[0]->getScalarType(), {}, {},
+                                         DL, "bit.pack");
+    BP->insertBefore(C.Store);
+    C.Store->setOperand(1, BP);
+    C.Group->eraseFromParent();
+  }
+
+  removeDeadRecipes(Plan);
+  return NewPlan;
+}
+
 /// Add branch weight metadata, if the \p Plan's middle block is terminated by a
 /// BranchOnCond recipe.
 void VPlanTransforms::addBranchWeightToMiddleTerminator(

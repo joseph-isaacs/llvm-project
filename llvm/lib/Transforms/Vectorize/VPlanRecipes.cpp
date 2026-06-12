@@ -616,6 +616,7 @@ unsigned VPInstruction::getNumOperandsForOpcode() const {
   case Instruction::PHI:
   case Instruction::Switch:
   case VPInstruction::AnyOf:
+  case VPInstruction::BitPack:
   case VPInstruction::BuildStructVector:
   case VPInstruction::BuildVector:
   case VPInstruction::CanonicalIVIncrementForPart:
@@ -1803,6 +1804,21 @@ void VPInstructionWithType::execute(VPTransformState &State) {
     return;
   }
   switch (getOpcode()) {
+  case VPInstruction::BitPack: {
+    auto &Builder = State.Builder;
+    assert(State.VF.getKnownMinValue() == ResultTy->getIntegerBitWidth() &&
+           "lane count must match result element bit width");
+    Value *Res =
+        PoisonValue::get(FixedVectorType::get(ResultTy, getNumOperands()));
+    for (const auto &[Idx, Op] : enumerate(operands())) {
+      Value *Mask = State.get(Op);
+      Value *Packed = Builder.CreateBitCast(Mask, ResultTy);
+      Res = Builder.CreateInsertElement(Res, Packed, Builder.getInt32(Idx),
+                                        "bit.pack");
+    }
+    State.set(this, Res);
+    break;
+  }
   case VPInstruction::StepVector: {
     Value *StepVector =
         State.Builder.CreateStepVector(VectorType::get(ResultTy, State.VF));
@@ -1840,6 +1856,10 @@ void VPInstructionWithType::printRecipe(raw_ostream &O, const Twine &Indent,
 
   Type *ResultTy = getResultType();
   switch (getOpcode()) {
+  case VPInstruction::BitPack:
+    O << "bit-pack to " << *ResultTy << " ";
+    printOperands(O, SlotTracker);
+    break;
   case VPInstruction::WideIVStep:
     O << "wide-iv-step ";
     printOperands(O, SlotTracker);

@@ -1254,6 +1254,12 @@ public:
     // 0 or successor 1 based on condition 0.
     BranchOnTwoConds,
     Broadcast,
+    /// Packs the bits of its boolean-vector operands into a vector of
+    /// lane-bitmask integers: element I of the result is the bitmask formed
+    /// from operand I's lanes (lane L becomes bit L, little-endian). The
+    /// number of lanes per operand must match the bit width of the result
+    /// element type. Used via VPInstructionWithType.
+    BitPack,
     /// Given operands of (the same) struct type, creates a struct of fixed-
     /// width vectors each containing a struct field of all operands. The
     /// number of operands matches the element count of every vector.
@@ -1559,6 +1565,7 @@ public:
     case VPInstruction::WideIVStep:
     case VPInstruction::StepVector:
     case VPInstruction::VScale:
+    case VPInstruction::BitPack:
     case Instruction::Load:
       return true;
     default:

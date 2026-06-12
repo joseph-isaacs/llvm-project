@@ -490,6 +490,18 @@ struct VPlanTransforms {
   static std::unique_ptr<VPlan>
   narrowInterleaveGroups(VPlan &Plan, const TargetTransformInfo &TTI);
 
+  /// Try to find load interleave groups whose compare results are packed
+  /// positionally into byte bitmasks, i.e.
+  ///   out[i] = or_j ((in[F*i + j] CMP rhs) ? (1 << j) : 0)
+  /// and replace the group + or-tree with consecutive wide loads feeding a
+  /// BitPack of the compare results: the group's lane deinterleave and the
+  /// bit-position assignment are inverse permutations, so the packed bits
+  /// equal the compare results of the consecutive input in memory order and
+  /// no shuffles are needed at all. If applied, \p Plan is restricted to the
+  /// transformed VF and a clone containing the remaining VFs is returned,
+  /// like narrowInterleaveGroups().
+  static std::unique_ptr<VPlan> packCompareBitsToStores(VPlan &Plan);
+
   /// Adapts the vector loop region for tail folding by introducing a header
   /// mask and conditionally executing the content of the region:
   ///

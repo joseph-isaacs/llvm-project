@@ -6600,6 +6600,9 @@ void LoopVectorizationPlanner::buildVPlans(VPlan &VPlan1, ElementCount MinVF,
     if (auto P = VPlanTransforms::narrowInterleaveGroups(*Plan, TTI))
       VPlans.push_back(std::move(P));
 
+    if (auto P = VPlanTransforms::packCompareBitsToStores(*Plan))
+      VPlans.push_back(std::move(P));
+
     RUN_VPLAN_PASS_NO_VERIFY(printOptimizedVPlan, *Plan);
     assert(verifyVPlanIsValid(*Plan) && "VPlan is invalid");
     VPlans.push_back(std::move(Plan));

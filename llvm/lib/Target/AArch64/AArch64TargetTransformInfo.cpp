@@ -4326,16 +4326,15 @@ InstructionCost AArch64TTIImpl::getScalarizationOverhead(
                                            CostKind);
   unsigned VecInstCost =
       CostKind == TTI::TCK_CodeSize ? 1 : ST->getVectorInsertExtractBaseCost();
-  // Inserts of scalar loads become LD1 single-structure instructions. Keep
-  // this in sync with the VectorInstrContext::Load handling in
-  // getVectorInstrCostHelper: LD1 lane loads are expensive on most uArchs and
-  // cannot fold an offset into their addressing mode.
-  if (Insert && !Extract && VIC == TTI::VectorInstrContext::Load) {
-    if (ST->hasFastLD1Single())
-      return 0;
-    if (CostKind != TTI::TCK_CodeSize)
-      return DemandedElts.popcount() * (VecInstCost + 1);
-  }
+  // Inserts of scalar loads become LD1 single-structure instructions, which on
+  // cores without fast LD1-single are an extra micro-op over a plain insert and
+  // cannot fold an offset into their addressing mode. Charge one extra per such
+  // insert so the vectorizer does not undercost replicated strided loads. Cores
+  // with FeatureFastLD1Single keep the base cost (handled below), matching the
+  // VectorInstrContext::Load path in getVectorInstrCostHelper.
+  if (Insert && !Extract && VIC == TTI::VectorInstrContext::Load &&
+      CostKind != TTI::TCK_CodeSize && !ST->hasFastLD1Single())
+    return DemandedElts.popcount() * (VecInstCost + 1);
   return DemandedElts.popcount() * (Insert + Extract) * VecInstCost;
 }
 

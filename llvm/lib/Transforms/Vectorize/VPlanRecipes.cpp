@@ -1838,6 +1838,22 @@ void VPInstructionWithType::execute(VPTransformState &State) {
 
 InstructionCost VPInstructionWithType::computeCost(ElementCount VF,
                                                    VPCostContext &Ctx) const {
+  if (getOpcode() == VPInstruction::BitPack) {
+    // Each operand is a <VF x i1> compare mask packed into one iVF lane: model
+    // it as a vector-to-scalar bitcast (the per-lane horizontal reduction) plus
+    // an insert into the result vector.
+    Type *EltTy = getResultType();
+    auto *MaskTy = VectorType::get(Type::getInt1Ty(Ctx.LLVMCtx), VF);
+    auto *ResTy = VectorType::get(EltTy, ElementCount::getFixed(getNumOperands()));
+    InstructionCost Cost = 0;
+    for (unsigned I = 0, E = getNumOperands(); I != E; ++I) {
+      Cost += Ctx.TTI.getCastInstrCost(Instruction::BitCast, EltTy, MaskTy,
+                                       TTI::CastContextHint::None, Ctx.CostKind);
+      Cost += Ctx.TTI.getVectorInstrCost(Instruction::InsertElement, ResTy,
+                                         Ctx.CostKind, I);
+    }
+    return Cost;
+  }
   // TODO: Compute cost for VPInstructions without underlying values.
   if (!getUnderlyingValue())
     return 0;

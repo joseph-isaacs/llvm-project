@@ -683,13 +683,7 @@ define void @force_branch_cost(ptr readonly %src, ptr %dst) {
 ; COST1-NEXT:    br label %[[VECTOR_BODY:.*]]
 ; COST1:       [[VECTOR_BODY]]:
 ; COST1-NEXT:    [[INDEX:%.*]] = phi i64 [ 0, %[[VECTOR_PH]] ], [ [[INDEX_NEXT:%.*]], %[[VECTOR_BODY]] ]
-; COST1-NEXT:    [[TMP2:%.*]] = add i64 [[INDEX]], 1
-; COST1-NEXT:    [[TMP3:%.*]] = add i64 [[INDEX]], 2
-; COST1-NEXT:    [[TMP4:%.*]] = add i64 [[INDEX]], 3
 ; COST1-NEXT:    [[TMP5:%.*]] = add i64 [[INDEX]], 4
-; COST1-NEXT:    [[TMP6:%.*]] = add i64 [[INDEX]], 5
-; COST1-NEXT:    [[TMP7:%.*]] = add i64 [[INDEX]], 6
-; COST1-NEXT:    [[TMP8:%.*]] = add i64 [[INDEX]], 7
 ; COST1-NEXT:    [[OFFSET_IDX:%.*]] = mul i64 [[INDEX]], 96
 ; COST1-NEXT:    [[TMP10:%.*]] = add i64 [[OFFSET_IDX]], 96
 ; COST1-NEXT:    [[TMP11:%.*]] = add i64 [[OFFSET_IDX]], 192
@@ -707,29 +701,11 @@ define void @force_branch_cost(ptr readonly %src, ptr %dst) {
 ; COST1-NEXT:    [[NEXT_GEP7:%.*]] = getelementptr i8, ptr [[DST]], i64 [[TMP15]]
 ; COST1-NEXT:    [[NEXT_GEP8:%.*]] = getelementptr i8, ptr [[DST]], i64 [[TMP16]]
 ; COST1-NEXT:    [[TMP17:%.*]] = getelementptr [4 x i8], ptr [[SRC]], i64 [[INDEX]]
-; COST1-NEXT:    [[TMP18:%.*]] = getelementptr [4 x i8], ptr [[SRC]], i64 [[TMP2]]
-; COST1-NEXT:    [[TMP19:%.*]] = getelementptr [4 x i8], ptr [[SRC]], i64 [[TMP3]]
-; COST1-NEXT:    [[TMP20:%.*]] = getelementptr [4 x i8], ptr [[SRC]], i64 [[TMP4]]
 ; COST1-NEXT:    [[TMP21:%.*]] = getelementptr [4 x i8], ptr [[SRC]], i64 [[TMP5]]
-; COST1-NEXT:    [[TMP22:%.*]] = getelementptr [4 x i8], ptr [[SRC]], i64 [[TMP6]]
-; COST1-NEXT:    [[TMP23:%.*]] = getelementptr [4 x i8], ptr [[SRC]], i64 [[TMP7]]
-; COST1-NEXT:    [[TMP24:%.*]] = getelementptr [4 x i8], ptr [[SRC]], i64 [[TMP8]]
-; COST1-NEXT:    [[TMP25:%.*]] = load i8, ptr [[TMP17]], align 1, !alias.scope [[META19:![0-9]+]]
-; COST1-NEXT:    [[TMP26:%.*]] = load i8, ptr [[TMP18]], align 1, !alias.scope [[META19]]
-; COST1-NEXT:    [[TMP27:%.*]] = load i8, ptr [[TMP19]], align 1, !alias.scope [[META19]]
-; COST1-NEXT:    [[TMP28:%.*]] = load i8, ptr [[TMP20]], align 1, !alias.scope [[META19]]
-; COST1-NEXT:    [[TMP29:%.*]] = insertelement <4 x i8> poison, i8 [[TMP25]], i32 0
-; COST1-NEXT:    [[TMP30:%.*]] = insertelement <4 x i8> [[TMP29]], i8 [[TMP26]], i32 1
-; COST1-NEXT:    [[TMP31:%.*]] = insertelement <4 x i8> [[TMP30]], i8 [[TMP27]], i32 2
-; COST1-NEXT:    [[TMP32:%.*]] = insertelement <4 x i8> [[TMP31]], i8 [[TMP28]], i32 3
-; COST1-NEXT:    [[TMP33:%.*]] = load i8, ptr [[TMP21]], align 1, !alias.scope [[META19]]
-; COST1-NEXT:    [[TMP34:%.*]] = load i8, ptr [[TMP22]], align 1, !alias.scope [[META19]]
-; COST1-NEXT:    [[TMP35:%.*]] = load i8, ptr [[TMP23]], align 1, !alias.scope [[META19]]
-; COST1-NEXT:    [[TMP36:%.*]] = load i8, ptr [[TMP24]], align 1, !alias.scope [[META19]]
-; COST1-NEXT:    [[TMP37:%.*]] = insertelement <4 x i8> poison, i8 [[TMP33]], i32 0
-; COST1-NEXT:    [[TMP38:%.*]] = insertelement <4 x i8> [[TMP37]], i8 [[TMP34]], i32 1
-; COST1-NEXT:    [[TMP39:%.*]] = insertelement <4 x i8> [[TMP38]], i8 [[TMP35]], i32 2
-; COST1-NEXT:    [[TMP40:%.*]] = insertelement <4 x i8> [[TMP39]], i8 [[TMP36]], i32 3
+; COST1-NEXT:    [[WIDE_VEC:%.*]] = load <16 x i8>, ptr [[TMP17]], align 1, !alias.scope [[META19:![0-9]+]]
+; COST1-NEXT:    [[TMP32:%.*]] = shufflevector <16 x i8> [[WIDE_VEC]], <16 x i8> poison, <4 x i32> <i32 0, i32 4, i32 8, i32 12>
+; COST1-NEXT:    [[WIDE_VEC9:%.*]] = load <16 x i8>, ptr [[TMP21]], align 1, !alias.scope [[META19]]
+; COST1-NEXT:    [[TMP40:%.*]] = shufflevector <16 x i8> [[WIDE_VEC9]], <16 x i8> poison, <4 x i32> <i32 0, i32 4, i32 8, i32 12>
 ; COST1-NEXT:    [[TMP41:%.*]] = zext <4 x i8> [[TMP32]] to <4 x i32>
 ; COST1-NEXT:    [[TMP44:%.*]] = extractelement <4 x i32> [[TMP41]], i64 0
 ; COST1-NEXT:    [[TMP49:%.*]] = extractelement <4 x i32> [[TMP41]], i64 1
@@ -819,9 +795,6 @@ define void @force_branch_cost(ptr readonly %src, ptr %dst) {
 ; COST10-NEXT:    br label %[[VECTOR_BODY:.*]]
 ; COST10:       [[VECTOR_BODY]]:
 ; COST10-NEXT:    [[INDEX:%.*]] = phi i64 [ 0, %[[VECTOR_PH]] ], [ [[INDEX_NEXT:%.*]], %[[VECTOR_BODY]] ]
-; COST10-NEXT:    [[TMP2:%.*]] = add i64 [[INDEX]], 1
-; COST10-NEXT:    [[TMP3:%.*]] = add i64 [[INDEX]], 2
-; COST10-NEXT:    [[TMP4:%.*]] = add i64 [[INDEX]], 3
 ; COST10-NEXT:    [[OFFSET_IDX:%.*]] = mul i64 [[INDEX]], 96
 ; COST10-NEXT:    [[TMP6:%.*]] = add i64 [[OFFSET_IDX]], 96
 ; COST10-NEXT:    [[TMP7:%.*]] = add i64 [[OFFSET_IDX]], 192
@@ -831,17 +804,8 @@ define void @force_branch_cost(ptr readonly %src, ptr %dst) {
 ; COST10-NEXT:    [[NEXT_GEP3:%.*]] = getelementptr i8, ptr [[DST]], i64 [[TMP7]]
 ; COST10-NEXT:    [[NEXT_GEP4:%.*]] = getelementptr i8, ptr [[DST]], i64 [[TMP8]]
 ; COST10-NEXT:    [[TMP9:%.*]] = getelementptr [4 x i8], ptr [[SRC]], i64 [[INDEX]]
-; COST10-NEXT:    [[TMP10:%.*]] = getelementptr [4 x i8], ptr [[SRC]], i64 [[TMP2]]
-; COST10-NEXT:    [[TMP11:%.*]] = getelementptr [4 x i8], ptr [[SRC]], i64 [[TMP3]]
-; COST10-NEXT:    [[TMP12:%.*]] = getelementptr [4 x i8], ptr [[SRC]], i64 [[TMP4]]
-; COST10-NEXT:    [[TMP13:%.*]] = load i8, ptr [[TMP9]], align 1, !alias.scope [[META19:![0-9]+]]
-; COST10-NEXT:    [[TMP14:%.*]] = load i8, ptr [[TMP10]], align 1, !alias.scope [[META19]]
-; COST10-NEXT:    [[TMP15:%.*]] = load i8, ptr [[TMP11]], align 1, !alias.scope [[META19]]
-; COST10-NEXT:    [[TMP16:%.*]] = load i8, ptr [[TMP12]], align 1, !alias.scope [[META19]]
-; COST10-NEXT:    [[TMP17:%.*]] = insertelement <4 x i8> poison, i8 [[TMP13]], i32 0
-; COST10-NEXT:    [[TMP18:%.*]] = insertelement <4 x i8> [[TMP17]], i8 [[TMP14]], i32 1
-; COST10-NEXT:    [[TMP19:%.*]] = insertelement <4 x i8> [[TMP18]], i8 [[TMP15]], i32 2
-; COST10-NEXT:    [[TMP20:%.*]] = insertelement <4 x i8> [[TMP19]], i8 [[TMP16]], i32 3
+; COST10-NEXT:    [[WIDE_VEC:%.*]] = load <16 x i8>, ptr [[TMP9]], align 1, !alias.scope [[META19:![0-9]+]]
+; COST10-NEXT:    [[TMP20:%.*]] = shufflevector <16 x i8> [[WIDE_VEC]], <16 x i8> poison, <4 x i32> <i32 0, i32 4, i32 8, i32 12>
 ; COST10-NEXT:    [[TMP21:%.*]] = zext <4 x i8> [[TMP20]] to <4 x i32>
 ; COST10-NEXT:    [[TMP24:%.*]] = extractelement <4 x i32> [[TMP21]], i64 0
 ; COST10-NEXT:    [[TMP25:%.*]] = extractelement <4 x i32> [[TMP21]], i64 1

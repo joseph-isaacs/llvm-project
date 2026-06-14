@@ -48,6 +48,11 @@ using namespace llvm;
 using namespace VPlanPatternMatch;
 using namespace SCEVPatternMatch;
 
+static cl::opt<bool> EnableBitPackStores(
+    "vplan-pack-compare-bits", cl::init(true), cl::Hidden,
+    cl::desc("Enable packing of positional compare bits into bitmask stores "
+             "via consecutive loads in the LoopVectorizer"));
+
 bool VPlanTransforms::tryToConvertVPInstructionsToVPRecipes(
     VPlan &Plan, const TargetLibraryInfo &TLI) {
 
@@ -5868,7 +5873,12 @@ std::unique_ptr<VPlan> VPlanTransforms::packCompareBitsToStores(VPlan &Plan) {
   // other pack widths (i16/i32/i64 outputs).
   constexpr unsigned Factor = 8;
   ElementCount VF = ElementCount::getFixed(Factor);
-  if (!Plan.hasVF(VF))
+  if (!EnableBitPackStores || !Plan.hasVF(VF))
+    return nullptr;
+
+  // The packing relies on `bitcast <VF x i1> to iVF` mapping lane L to bit L,
+  // which only holds on little-endian targets.
+  if (!Plan.getDataLayout().isLittleEndian())
     return nullptr;
 
   VPRegionBlock *VectorLoop = Plan.getVectorLoopRegion();
@@ -5886,11 +5896,22 @@ std::unique_ptr<VPlan> VPlanTransforms::packCompareBitsToStores(VPlan &Plan) {
 
   for (VPRecipeBase &R : *VectorLoop->getEntryBasicBlock()) {
     auto *InterleaveR = dyn_cast<VPInterleaveRecipe>(&R);
-    // Only unmasked, full load groups of the right factor.
+    // Only unmasked, full, forward load groups of the right factor. Reverse
+    // groups have their address replaced by an end-pointer and reversed lane
+    // order, so the consecutive-chunk rewrite below does not apply.
     if (!InterleaveR || !InterleaveR->getStoredValues().empty() ||
-        InterleaveR->getMask() ||
-        InterleaveR->getInterleaveGroup()->getFactor() != Factor ||
-        !InterleaveR->getInterleaveGroup()->isFull())
+        InterleaveR->getMask())
+      continue;
+    const InterleaveGroup<Instruction> *IG = InterleaveR->getInterleaveGroup();
+    if (IG->getFactor() != Factor || !IG->isFull() || IG->isReverse())
+      continue;
+
+    // The consecutive load + per-chunk byte offset arithmetic assumes every
+    // member has the same element type as the insert position.
+    Type *ElemTy = getLoadStoreType(IG->getInsertPos());
+    if (any_of(IG->members(), [&](Instruction *M) {
+          return getLoadStoreType(M) != ElemTy;
+        }))
       continue;
 
     Candidate C;

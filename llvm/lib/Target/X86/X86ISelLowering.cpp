@@ -36569,6 +36569,22 @@ bool X86TargetLowering::shouldFoldSelectWithIdentityConstant(
   if (!VT.isVector() || VT.getScalarType() == MVT::i1)
     return false;
 
+  // This fold is only worthwhile if the result becomes a single masked binop.
+  // AVX512 masks bitwise logic ops at 32- or 64-bit granularity only (vpandd,
+  // vpord, vpxorq, ...), so for narrower elements the folded form cannot be
+  // contracted and needs a separate merge-move:
+  //
+  //   vpor      %ymmY, %ymmX, %ymmT
+  //   vmovdqu16 %ymmT, %ymmX {%k1}
+  //
+  // That is the same instruction count as the unfolded form, but it puts both
+  // instructions on X's dependency chain instead of keeping the select off it.
+  // In a reduction such as "acc |= cond ? Bit : 0" it doubles the critical
+  // path, so leave the reassociable "or (acc, select(C, Y, 0))" form alone.
+  if ((BinOpcode == ISD::AND || BinOpcode == ISD::OR || BinOpcode == ISD::XOR) &&
+      VT.getScalarSizeInBits() < 32)
+    return false;
+
   return true;
 }
 

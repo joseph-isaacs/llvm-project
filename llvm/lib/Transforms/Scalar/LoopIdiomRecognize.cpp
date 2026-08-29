@@ -86,6 +86,7 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Utils/BuildLibCalls.h"
 #include "llvm/Transforms/Utils/Local.h"
+#include "llvm/Transforms/Scalar/LoopPassManager.h"
 #include "llvm/Transforms/Utils/LoopUtils.h"
 #include "llvm/Transforms/Utils/ScalarEvolutionExpander.h"
 #include <algorithm>
@@ -202,6 +203,7 @@ class LoopIdiomRecognize {
   const TargetTransformInfo *TTI;
   const DataLayout *DL;
   OptimizationRemarkEmitter &ORE;
+  LPMUpdater *Updater = nullptr;
   bool ApplyCodeSizeHeuristics;
   std::unique_ptr<MemorySSAUpdater> MSSAU;
 
@@ -211,8 +213,10 @@ public:
                               TargetLibraryInfo *TLI,
                               const TargetTransformInfo *TTI, MemorySSA *MSSA,
                               const DataLayout *DL,
-                              OptimizationRemarkEmitter &ORE)
-      : AA(AA), DT(DT), LI(LI), SE(SE), TLI(TLI), TTI(TTI), DL(DL), ORE(ORE) {
+                              OptimizationRemarkEmitter &ORE,
+                              LPMUpdater *Updater = nullptr)
+      : AA(AA), DT(DT), LI(LI), SE(SE), TLI(TLI), TTI(TTI), DL(DL), ORE(ORE),
+        Updater(Updater) {
     if (MSSA)
       MSSAU = std::make_unique<MemorySSAUpdater>(MSSA);
   }
@@ -245,6 +249,7 @@ private:
   /// @{
 
   bool runOnCountableLoop();
+  bool recognizeBitPack();
   bool runOnLoopBlock(BasicBlock *BB, const SCEV *BECount,
                       SmallVectorImpl<BasicBlock *> &ExitBlocks);
 
@@ -315,7 +320,7 @@ private:
 
 PreservedAnalyses LoopIdiomRecognizePass::run(Loop &L, LoopAnalysisManager &AM,
                                               LoopStandardAnalysisResults &AR,
-                                              LPMUpdater &) {
+                                              LPMUpdater &U) {
   if (DisableLIRP::All)
     return PreservedAnalyses::all();
 
@@ -327,7 +332,7 @@ PreservedAnalyses LoopIdiomRecognizePass::run(Loop &L, LoopAnalysisManager &AM,
   OptimizationRemarkEmitter ORE(L.getHeader()->getParent());
 
   LoopIdiomRecognize LIR(&AR.AA, &AR.DT, &AR.LI, &AR.SE, &AR.TLI, &AR.TTI,
-                         AR.MSSA, DL, ORE);
+                         AR.MSSA, DL, ORE, &U);
   if (!LIR.runOnLoop(&L))
     return PreservedAnalyses::all();
 
@@ -392,6 +397,11 @@ bool LoopIdiomRecognize::runOnCountableLoop() {
   // optimized by this pass.
   if (BECount->isZero())
     return false;
+
+  // Try the positional bit-pack ("movemask") idiom first: on success the loop
+  // is deleted, so nothing below may run afterwards.
+  if (recognizeBitPack())
+    return true;
 
   SmallVector<BasicBlock *, 8> ExitBlocks;
   CurLoop->getUniqueExitBlocks(ExitBlocks);
@@ -2856,6 +2866,239 @@ bool LoopIdiomRecognize::recognizeShiftUntilLessThan() {
 ///
 /// If detected, transforms the relevant code to issue the popcount intrinsic
 /// function call, and returns true; otherwise, returns false.
+
+/// Recognize the positional bit-pack ("movemask") idiom:
+/// \code
+///   loop:
+///     %acc = phi iW [ 0, %preheader ], [ %or, %loop ]
+///     %j   = phi i64 [ 0, %preheader ], [ %j.next, %loop ]
+///     %p   = getelementptr T, ptr %base, i64 %j
+///     %v   = load T, ptr %p
+///     %c   = icmp <pred> T %v, %inv
+///     %z   = zext i1 %c to iW
+///     %s   = shl iW %z, %j
+///     %or  = or iW %s, %acc
+///     %j.next = add i64 %j, 1
+///     br (%j.next == N), %exit, %loop
+/// \endcode
+/// and rewrite it as a single wide compare whose mask is reinterpreted as an
+/// integer, which every target with a movemask-style instruction lowers well
+/// (x86 vpmovmskb/vmovmskps, AArch64 and+addv):
+/// \code
+///   %wv = load <N x T>, ptr %base
+///   %wc = icmp <pred> <N x T> %wv, splat(%inv)
+///   %m  = bitcast <N x i1> %wc to iN
+///   %r  = zext iN %m to iW
+/// \endcode
+///
+/// The lane-to-bit mapping of the bitcast is little-endian only, so the
+/// transform is disabled on big-endian targets.
+bool LoopIdiomRecognize::recognizeBitPack() {
+  using namespace llvm::PatternMatch;
+  if (DL->isBigEndian())
+    return false;
+  if (DisableLIRP::All)
+    return false;
+
+  // Require a simple, innermost, single-block loop with a dedicated exit.
+  if (!CurLoop->isInnermost())
+    return false;
+  BasicBlock *BB = CurLoop->getHeader();
+  if (CurLoop->getLoopLatch() != BB)
+    return false;
+  BasicBlock *PH = CurLoop->getLoopPreheader();
+  BasicBlock *Exit = CurLoop->getExitBlock();
+  if (!PH || !Exit)
+    return false;
+
+  // The trip count must be a compile-time constant: it becomes the number of
+  // vector lanes, and it must be a legal mask width for the accumulator.
+  const SCEV *BEC = SE->getBackedgeTakenCount(CurLoop);
+  const auto *BECC = dyn_cast<SCEVConstant>(BEC);
+  if (!BECC || BECC->getAPInt().getActiveBits() > 32)
+    return false;
+  uint64_t N = BECC->getAPInt().getZExtValue() + 1;
+  if (N < 2 || N > 64 || !isPowerOf2_64(N))
+    return false;
+
+  // Find the or-accumulator: %acc = phi [ 0, %ph ], [ %or, %bb ], with
+  // %or = or(%shl, %acc).
+  PHINode *Acc = nullptr;
+  BinaryOperator *Or = nullptr;
+  Value *Shl = nullptr;
+  for (PHINode &P : BB->phis()) {
+    if (!match(P.getIncomingValueForBlock(PH), m_Zero()))
+      continue;
+    auto *Back = dyn_cast<BinaryOperator>(P.getIncomingValueForBlock(BB));
+    if (!Back || Back->getOpcode() != Instruction::Or || Back->getParent() != BB)
+      continue;
+    if (Back->getOperand(0) == &P)
+      Shl = Back->getOperand(1);
+    else if (Back->getOperand(1) == &P)
+      Shl = Back->getOperand(0);
+    else
+      continue;
+    Acc = &P;
+    Or = Back;
+    break;
+  }
+  if (!Acc)
+    return false;
+
+  // The accumulator must be dead inside the loop apart from the or, and its
+  // only escaping use is the exit value we are going to replace.
+  if (!Acc->hasOneUse())
+    return false;
+  // %or feeds the accumulator phi around the backedge and the lcssa phi in the
+  // exit block, and nothing else.
+  PHINode *ExitPN = nullptr;
+  for (User *U : Or->users()) {
+    if (U == Acc)
+      continue;
+    auto *PN = dyn_cast<PHINode>(U);
+    if (!PN || PN->getParent() != Exit || ExitPN)
+      return false;
+    ExitPN = PN;
+  }
+  if (!ExitPN)
+    return false;
+
+  Type *AccTy = Acc->getType();
+  if (!AccTy->isIntegerTy() || AccTy->getIntegerBitWidth() < N)
+    return false;
+
+  // %shl = shl %zext, %j, where %j is the {0,+,1} induction variable.
+  Value *ZExtV = nullptr, *ShAmt = nullptr;
+  if (!match(Shl, m_OneUse(m_Shl(m_Value(ZExtV), m_Value(ShAmt)))))
+    return false;
+  const SCEV *ShS = SE->getSCEV(ShAmt);
+  const auto *ShAR = dyn_cast<SCEVAddRecExpr>(ShS);
+  if (!ShAR || ShAR->getLoop() != CurLoop || !ShAR->isAffine() ||
+      !ShAR->getStart()->isZero() || !ShAR->getStepRecurrence(*SE)->isOne())
+    return false;
+
+  // %zext = zext i1 %cmp to iW, %cmp = icmp pred %load, %invariant.
+  Value *CmpV = nullptr;
+  if (!match(ZExtV, m_OneUse(m_ZExt(m_Value(CmpV)))))
+    return false;
+  auto *Cmp = dyn_cast<ICmpInst>(CmpV);
+  if (!Cmp || !Cmp->hasOneUse() || Cmp->getParent() != BB)
+    return false;
+
+  Value *LoadV = Cmp->getOperand(0), *Inv = Cmp->getOperand(1);
+  CmpInst::Predicate Pred = Cmp->getPredicate();
+  if (!isa<LoadInst>(LoadV)) {
+    std::swap(LoadV, Inv);
+    Pred = CmpInst::getSwappedPredicate(Pred);
+  }
+  auto *Load = dyn_cast<LoadInst>(LoadV);
+  if (!Load || !Load->hasOneUse() || !Load->isSimple() || Load->getParent() != BB)
+    return false;
+  if (!CurLoop->isLoopInvariant(Inv))
+    return false;
+
+  Type *EltTy = Load->getType();
+  if (!EltTy->isIntegerTy() && !EltTy->isFloatingPointTy())
+    return false;
+
+  // The loads must walk consecutive elements: {base,+,sizeof(T)}.
+  const SCEV *PtrS = SE->getSCEV(Load->getPointerOperand());
+  const auto *PtrAR = dyn_cast<SCEVAddRecExpr>(PtrS);
+  if (!PtrAR || PtrAR->getLoop() != CurLoop || !PtrAR->isAffine())
+    return false;
+  const auto *Step = dyn_cast<SCEVConstant>(PtrAR->getStepRecurrence(*SE));
+  uint64_t EltSize = DL->getTypeStoreSize(EltTy).getFixedValue();
+  if (!Step || Step->getAPInt() != EltSize)
+    return false;
+  if (!SE->isLoopInvariant(PtrAR->getStart(), CurLoop))
+    return false;
+
+  // The loop body must contain nothing but the recognized chain plus the
+  // induction bookkeeping, so that deleting it cannot drop side effects.
+  for (Instruction &I : *BB) {
+    if (isa<PHINode>(I) || &I == Or || &I == Load || &I == Cmp ||
+        &I == cast<Instruction>(ZExtV) || &I == cast<Instruction>(Shl) ||
+        I.isTerminator())
+      continue;
+    if (I.mayHaveSideEffects() || I.mayReadFromMemory())
+      return false;
+    // Anything else must be dead outside the loop (e.g. the IV increment and
+    // the exit compare), which the loop deletion below will clean up.
+    for (User *U : I.users())
+      if (!CurLoop->contains(cast<Instruction>(U)->getParent()))
+        return false;
+  }
+
+  auto *VecTy = FixedVectorType::get(EltTy, N);
+  auto *MaskIntTy = IntegerType::get(BB->getContext(), N);
+
+  // Only fire when the wide form is actually cheaper than the scalar loop.
+  TargetTransformInfo::TargetCostKind CostKind =
+      TargetTransformInfo::TCK_RecipThroughput;
+  InstructionCost VecCost =
+      TTI->getMemoryOpCost(Instruction::Load, VecTy, Load->getAlign(),
+                           Load->getPointerAddressSpace(), CostKind) +
+      TTI->getCmpSelInstrCost(Cmp->getOpcode(), VecTy,
+                              CmpInst::makeCmpResultType(VecTy), Pred,
+                              CostKind) +
+      TTI->getCastInstrCost(Instruction::BitCast, MaskIntTy,
+                            CmpInst::makeCmpResultType(VecTy),
+                            TargetTransformInfo::CastContextHint::None,
+                            CostKind);
+  if (MaskIntTy != AccTy)
+    VecCost += TTI->getCastInstrCost(
+        Instruction::ZExt, AccTy, MaskIntTy,
+        TargetTransformInfo::CastContextHint::None, CostKind);
+
+  InstructionCost ScalarCost =
+      N * (TTI->getMemoryOpCost(Instruction::Load, EltTy, Load->getAlign(),
+                                Load->getPointerAddressSpace(), CostKind) +
+           TTI->getCmpSelInstrCost(Cmp->getOpcode(), EltTy,
+                                   CmpInst::makeCmpResultType(EltTy), Pred,
+                                   CostKind) +
+           TTI->getArithmeticInstrCost(Instruction::Shl, AccTy, CostKind) +
+           TTI->getArithmeticInstrCost(Instruction::Or, AccTy, CostKind));
+  if (VecCost >= ScalarCost)
+    return false;
+
+  LLVM_DEBUG(dbgs() << DEBUG_TYPE " Recognized bit-pack idiom of " << N
+                    << " lanes in loop %" << BB->getName() << " (vector cost "
+                    << VecCost << " vs scalar " << ScalarCost << ")\n");
+
+  // Materialize the wide compare in the preheader.
+  SCEVExpander Expander(*SE, "loop-idiom");
+  SCEVExpanderCleaner ExpCleaner(Expander);
+  Value *Base = Expander.expandCodeFor(PtrAR->getStart(),
+                                       Load->getPointerOperandType(),
+                                       PH->getTerminator());
+
+  IRBuilder<> B(PH->getTerminator());
+  // The scalar loop dereferences all N elements, so the wide load is safe, but
+  // it may only assume the alignment of the first scalar access.
+  LoadInst *WideLoad = B.CreateAlignedLoad(VecTy, Base, Load->getAlign());
+  WideLoad->setDebugLoc(Load->getDebugLoc());
+  Value *Splat = B.CreateVectorSplat(ElementCount::getFixed(N), Inv);
+  Value *WideCmp = B.CreateICmp(Pred, WideLoad, Splat);
+  Value *Mask = B.CreateBitCast(WideCmp, MaskIntTy);
+  Value *Res = B.CreateZExtOrBitCast(Mask, AccTy);
+
+  ExitPN->replaceAllUsesWith(Res);
+  ExitPN->eraseFromParent();
+
+  ORE.emit([&]() {
+    return OptimizationRemark(DEBUG_TYPE, "BitPackIdiom", Load->getDebugLoc(),
+                              BB)
+           << "packed " << ore::NV("Lanes", N)
+           << " comparisons into a bitmask";
+  });
+
+  ExpCleaner.markResultUsed();
+  if (Updater)
+    Updater->markLoopAsDeleted(*CurLoop, CurLoop->getName());
+  deleteDeadLoop(CurLoop, DT, SE, LI, MSSAU ? MSSAU->getMemorySSA() : nullptr);
+  return true;
+}
+
 bool LoopIdiomRecognize::recognizePopcount() {
   if (TTI->getPopcntSupport(32) != TargetTransformInfo::PSK_FastHardware)
     return false;

@@ -57,3 +57,17 @@ define <16 x i16> @add_v16i16(<16 x i16> %acc, <16 x i16> %a, <16 x i16> %rhs, <
   %o = add <16 x i16> %acc, %s
   ret <16 x i16> %o
 }
+
+define <16 x i16> @and_v16i16(<16 x i16> %acc, <16 x i16> %a, <16 x i16> %rhs, <16 x i16> %y) {
+; CHECK-LABEL: and_v16i16:
+; CHECK:       # %bb.0:
+; CHECK-NEXT:    vpcmpltuw %ymm2, %ymm1, %k1
+; CHECK-NEXT:    vpcmpeqd %ymm1, %ymm1, %ymm1
+; CHECK-NEXT:    vmovdqu16 %ymm3, %ymm1 {%k1}
+; CHECK-NEXT:    vpand %ymm1, %ymm0, %ymm0
+; CHECK-NEXT:    retq
+  %c = icmp ult <16 x i16> %a, %rhs
+  %s = select <16 x i1> %c, <16 x i16> %y, <16 x i16> splat(i16 -1)
+  %o = and <16 x i16> %acc, %s
+  ret <16 x i16> %o
+}

@@ -1279,6 +1279,11 @@ public:
     /// Creates a fixed-width vector containing all operands. The number of
     /// operands matches the vector element count.
     BuildVector,
+    /// Packs a <VF x i1> mask into the low VF bits of a scalar integer, so
+    /// that lane L becomes bit L. Lowers to the target's movemask-style
+    /// instruction (x86 vpmovmskb/kmovq, AArch64 and+addv). Little-endian
+    /// only; the single operand is the mask.
+    BitPackMask,
     /// Extracts all lanes from its (non-scalable) vector operand. This is an
     /// abstract VPInstruction whose single defined VPValue represents VF
     /// scalars extracted from a vector, to be replaced by VF ExtractElement

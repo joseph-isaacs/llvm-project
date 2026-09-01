@@ -602,6 +602,10 @@ struct VPlanTransforms {
   /// Detect and create partial reduction recipes for scaled reductions in
   /// \p Plan. Must be called after recipe construction. If partial reductions
   /// are only valid for a subset of VFs in Range, Range.End is updated.
+  /// Replace positional bit-pack or-reductions with a scalar accumulation of
+  /// movemask chunks. Returns true if the plan changed.
+  static bool createBitPackReductions(VPlan &Plan, ElementCount VF);
+
   static void createPartialReductions(VPlan &Plan, VPCostContext &CostCtx,
                                       VFRange &Range);
 

@@ -17,6 +17,8 @@
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/OptimizationRemarkEmitter.h"
 #include "llvm/Analysis/ScalarEvolution.h"
+#include "llvm/Analysis/ScalarEvolutionExpressions.h"
+#include "llvm/IR/PatternMatch.h"
 #include "llvm/IR/DiagnosticInfo.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
@@ -505,6 +507,44 @@ FixedScalableVFPair VFSelectionContext::computeFeasibleMaxVF(
   return Result;
 }
 
+/// Return true if the reduction rooted at \p Phi is a positional bit-pack:
+///   acc |= zext(cmp) << j      with j the loop's {0,+,1} induction
+/// so that iteration j contributes exactly bit j. Such a reduction is best
+/// done in-loop: each vector iteration contributes VF disjoint bits, produced
+/// by reinterpreting the compare mask as an integer (a movemask), so the
+/// accumulator stays scalar and its width must not cap the vectorization
+/// factor. The lane-to-bit mapping only holds on little-endian targets.
+static bool isBitPackReduction(PHINode *Phi,
+                               const RecurrenceDescriptor &RdxDesc,
+                               const Loop *TheLoop,
+                               PredicatedScalarEvolution &PSE) {
+  using namespace llvm::PatternMatch;
+  if (RdxDesc.getRecurrenceKind() != RecurKind::Or ||
+      !Phi->getType()->isIntegerTy())
+    return false;
+  const DataLayout &DL = Phi->getDataLayout();
+  if (DL.isBigEndian())
+    return false;
+  auto *Or = dyn_cast<BinaryOperator>(RdxDesc.getLoopExitInstr());
+  if (!Or || Or->getOpcode() != Instruction::Or)
+    return false;
+  if (Or->getOperand(0) != Phi && Or->getOperand(1) != Phi)
+    return false;
+  Value *ShlV =
+      Or->getOperand(0) == Phi ? Or->getOperand(1) : Or->getOperand(0);
+  Value *Cmp = nullptr, *ShAmt = nullptr;
+  if (!match(ShlV, m_OneUse(m_Shl(m_OneUse(m_ZExt(m_Value(Cmp))),
+                                  m_Value(ShAmt)))) ||
+      !isa<CmpInst>(Cmp))
+    return false;
+  ScalarEvolution &SE = *PSE.getSE();
+  if (!SE.isSCEVable(ShAmt->getType()))
+    return false;
+  const auto *AR = dyn_cast<SCEVAddRecExpr>(SE.getSCEV(ShAmt));
+  return AR && AR->getLoop() == TheLoop && AR->isAffine() &&
+         AR->getStart()->isZero() && AR->getStepRecurrence(SE)->isOne();
+}
+
 std::pair<unsigned, unsigned>
 VFSelectionContext::getSmallestAndWidestTypes() const {
   unsigned MinWidth = -1U;
@@ -570,7 +610,8 @@ void VFSelectionContext::collectElementTypesForWidening(
             Legal->getRecurrenceDescriptor(PN);
         if (PreferInLoopReductions || useOrderedReductions(RdxDesc) ||
             TTI.preferInLoopReduction(RdxDesc.getRecurrenceKind(),
-                                      RdxDesc.getRecurrenceType()))
+                                      RdxDesc.getRecurrenceType()) ||
+            isBitPackReduction(PN, RdxDesc, TheLoop, PSE))
           continue;
         T = RdxDesc.getRecurrenceType();
       }
@@ -651,6 +692,7 @@ void VFSelectionContext::computeMinimalBitwidths() {
 }
 
 void VFSelectionContext::collectInLoopReductions() {
+
   // Avoid duplicating work finding in-loop reductions.
   if (!InLoopReductions.empty())
     return;
@@ -678,7 +720,8 @@ void VFSelectionContext::collectInLoopReductions() {
     // If the target would prefer this reduction to happen "in-loop", then we
     // want to record it as such.
     if (!PreferInLoopReductions && !useOrderedReductions(RdxDesc) &&
-        !TTI.preferInLoopReduction(Kind, Phi->getType()))
+        !TTI.preferInLoopReduction(Kind, Phi->getType()) &&
+        !isBitPackReduction(Phi, RdxDesc, TheLoop, PSE))
       continue;
 
     // Check that we can correctly put the reductions into the loop, by

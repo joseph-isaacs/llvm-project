@@ -639,6 +639,7 @@ unsigned VPInstruction::getNumOperandsForOpcode() const {
   case Instruction::ExtractValue:
   case Instruction::Freeze:
   case Instruction::Load:
+  case VPInstruction::BitPackMask:
   case VPInstruction::BranchOnCond:
   case VPInstruction::Broadcast:
   case VPInstruction::ExitingIVValue:
@@ -881,6 +882,14 @@ Value *VPInstruction::generate(VPTransformState &State) {
     IRBB->getTerminator()->eraseFromParent();
     applyMetadata(*Br);
     return Br;
+  }
+  case VPInstruction::BitPackMask: {
+    // Reinterpret the <VF x i1> mask as a VF-bit integer: lane L -> bit L.
+    Value *Mask = State.get(getOperand(0));
+    auto *MaskTy = cast<VectorType>(Mask->getType());
+    auto *IntTy = Builder.getIntNTy(
+        MaskTy->getElementCount().getFixedValue());
+    return Builder.CreateBitCast(Mask, IntTy, "bitpack");
   }
   case VPInstruction::Broadcast: {
     return Builder.CreateVectorSplat(
@@ -1514,7 +1523,8 @@ InstructionCost VPInstruction::computeCost(ElementCount VF,
 }
 
 bool VPInstruction::isVectorToScalar() const {
-  return getOpcode() == VPInstruction::ExtractLastLane ||
+  return getOpcode() == VPInstruction::BitPackMask ||
+         getOpcode() == VPInstruction::ExtractLastLane ||
          getOpcode() == VPInstruction::ExtractPenultimateElement ||
          getOpcode() == Instruction::ExtractElement ||
          getOpcode() == VPInstruction::ExtractLane ||
@@ -1628,6 +1638,7 @@ bool VPInstruction::opcodeMayReadOrWriteFromMemory() const {
   case Instruction::Select:
   case Instruction::PHI:
   case VPInstruction::AnyOf:
+  case VPInstruction::BitPackMask:
   case VPInstruction::BranchOnCond:
   case VPInstruction::BranchOnTwoConds:
   case VPInstruction::BranchOnCount:
@@ -1697,6 +1708,10 @@ bool VPInstruction::usesFirstLaneOnly(const VPValue *Op) const {
   case VPInstruction::Not:
     // TODO: Cover additional opcodes.
     return vputils::onlyFirstLaneUsed(this);
+  case VPInstruction::ComputeReductionResult:
+    // In-loop and ordered reductions fold into a scalar accumulator, so only
+    // the first lane of each per-part operand is read.
+    return isReductionInLoop() || isReductionOrdered();
   case Instruction::Load:
   case VPInstruction::ActiveLaneMask:
   case VPInstruction::WideActiveLaneMask:
@@ -1795,6 +1810,9 @@ void VPInstruction::printRecipe(raw_ostream &O, const Twine &Indent,
   case VPInstruction::BranchOnCount:
     O << "branch-on-count";
     break;
+  case VPInstruction::BitPackMask:
+    O << "bitpack-mask";
+    break;
   case VPInstruction::Broadcast:
     O << "broadcast";
     break;
@@ -1890,6 +1908,19 @@ void VPInstructionWithType::execute(VPTransformState &State) {
     return;
   }
   switch (getOpcode()) {
+  case VPInstruction::BitPackMask: {
+    // Reinterpret the <VF x i1> mask as a VF-bit integer (lane L -> bit L),
+    // then widen it to the accumulator type. The mask width is only known
+    // once VF is fixed, so it is derived here rather than stored.
+    Value *Mask = State.get(getOperand(0));
+    auto *ChunkTy =
+        State.Builder.getIntNTy(State.VF.getKnownMinValue());
+    Value *Packed = State.Builder.CreateBitCast(Mask, ChunkTy, "bitpack");
+    State.set(this,
+              State.Builder.CreateZExtOrBitCast(Packed, ResultTy, "bitpack.ext"),
+              /*IsScalar=*/true);
+    break;
+  }
   case VPInstruction::StepVector: {
     Value *StepVector =
         State.Builder.CreateStepVector(VectorType::get(ResultTy, State.VF));
@@ -1922,6 +1953,20 @@ InstructionCost VPInstructionWithType::computeCost(ElementCount VF,
                                       Ctx);
 
   switch (getOpcode()) {
+  case VPInstruction::BitPackMask: {
+    // bitcast <VF x i1> to iVF, widened to the accumulator type.
+    Type *AccTy = getScalarType();
+    auto *MaskTy = cast<VectorType>(toVectorTy(
+        IntegerType::get(AccTy->getContext(), 1), VF));
+    auto *ChunkTy =
+        IntegerType::get(AccTy->getContext(), VF.getKnownMinValue());
+    return Ctx.TTI.getCastInstrCost(Instruction::BitCast, ChunkTy, MaskTy,
+                                    TargetTransformInfo::CastContextHint::None,
+                                    Ctx.CostKind) +
+           Ctx.TTI.getCastInstrCost(Instruction::ZExt, AccTy, ChunkTy,
+                                    TargetTransformInfo::CastContextHint::None,
+                                    Ctx.CostKind);
+  }
   case VPInstruction::StepVector:
     // TODO: This isn't quite right since even if the step-vector is hoisted
     // out of the loop it has a non-zero cost in the middle block, etc.

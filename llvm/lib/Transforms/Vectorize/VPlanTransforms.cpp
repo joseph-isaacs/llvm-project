@@ -2108,6 +2108,153 @@ static bool simplifyBranchConditionForVFAndUF(VPlan &Plan, ElementCount BestVF,
   return true;
 }
 
+
+/// Replace the per-iteration fold of an in-loop bit-pack or-reduction
+///   next = reduce.or(shl(zext(<VF x i1> mask), {0,+,1}-iv [+ part-offset]))
+///          folded into scalar acc
+/// with a movemask accumulation
+///   next = or(acc, zext(bitcast <VF x i1> mask to iVF) << (canonical-iv
+///                                                          [+ part-offset]))
+/// Lane L of iteration base J carries exactly bit J+L, so the horizontal
+/// or-reduce of the shifted lanes equals the mask reinterpreted as an iVF
+/// chunk shifted to its position. This removes the widened zext, the
+/// variable-shift vector and the per-iteration horizontal reduction; the
+/// backend lowers the remaining <VF x i1> bitcast to a movemask
+/// (x86 vpmovmskb/kmovq, AArch64 and+addv).
+///
+/// Runs after unrolling: each unrolled part has its own reduction phi and
+/// reduce recipe, whose shift amount is the part-0 induction plus a uniform
+/// part offset, handled via the second operand of the emitted scalar shift.
+bool VPlanTransforms::createBitPackReductions(VPlan &Plan, ElementCount VF) {
+  using namespace VPlanPatternMatch;
+
+  if (VF.isScalable() || VF.isScalar())
+    return false;
+  unsigned Lanes = VF.getFixedValue();
+  // Require at least a 4-bit chunk; movemask-style lowerings exist from 4
+  // lanes up (x86 movmskps, AArch64 addv), while 2-lane packs are noise.
+  if (Lanes < 4 || !isPowerOf2_32(Lanes))
+    return false;
+  auto *Region = Plan.getVectorLoopRegion();
+  if (!Region)
+    return false;
+  VPBasicBlock *Header = Region->getEntryBasicBlock();
+  if (Plan.getDataLayout().isBigEndian())
+    return false;
+
+  bool Changed = false;
+  SmallVector<VPReductionPHIRecipe *> Candidates;
+  for (VPRecipeBase &R : Header->phis())
+    if (auto *RedPhi = dyn_cast<VPReductionPHIRecipe>(&R))
+      if (RedPhi->getRecurrenceKind() == RecurKind::Or && RedPhi->isInLoop() &&
+          !RedPhi->isOrdered())
+        Candidates.push_back(RedPhi);
+
+  for (VPReductionPHIRecipe *RedPhi : Candidates) {
+    Type *AccTy = RedPhi->getScalarType();
+    if (!AccTy->isIntegerTy() || AccTy->getIntegerBitWidth() < Lanes)
+      continue;
+
+    // The scalar accumulator is folded once per iteration by a reduce recipe.
+    auto *Red = dyn_cast<VPReductionRecipe>(RedPhi->getBackedgeValue());
+    if (!Red || Red->getParent() != Header || Red->getCondOp() ||
+        Red->isPartialReduction() || Red->getChainOp() != RedPhi)
+      continue;
+
+    // The reduced vector is zext(mask) << iv, all single-use.
+    auto *ShlR = dyn_cast<VPWidenRecipe>(Red->getVecOp());
+    if (!ShlR || ShlR->getOpcode() != Instruction::Shl || !ShlR->hasOneUse())
+      continue;
+    auto *ZExtR = dyn_cast<VPWidenCastRecipe>(ShlR->getOperand(0));
+    if (!ZExtR || ZExtR->getOpcode() != Instruction::ZExt ||
+        !ZExtR->hasOneUse())
+      continue;
+    VPValue *Mask = ZExtR->getOperand(0);
+    if (!Mask->getScalarType()->isIntegerTy(1))
+      continue;
+
+    // The shift amount must be the {0,+,1} induction, optionally plus a
+    // uniform per-part offset added by unrolling.
+    // The shift amount must be the {0,+,1} induction, optionally plus a
+    // chain of uniform per-part offsets added by unrolling
+    // (add(add(j, VF), VF)...). Peel the chain, collecting the scalar
+    // addends.
+    VPValue *ShAmt = ShlR->getOperand(1);
+    SmallVector<VPValue *, 4> Offsets;
+    for (unsigned Depth = 0;
+         Depth < 8 && !isa<VPWidenIntOrFpInductionRecipe>(ShAmt); ++Depth) {
+      VPRecipeBase *OffR = ShAmt->getDefiningRecipe();
+      if (!OffR)
+        break;
+      unsigned Opc = 0;
+      if (auto *WR = dyn_cast<VPWidenRecipe>(OffR))
+        Opc = WR->getOpcode();
+      else if (auto *VPI = dyn_cast<VPInstruction>(OffR))
+        Opc = VPI->getOpcode();
+      if (Opc != Instruction::Add)
+        break;
+      VPValue *A = OffR->getOperand(0), *B = OffR->getOperand(1);
+      auto IsUniformScalar = [](VPValue *&V) {
+        // Strip a broadcast, and peel wide-iv-step(X, 1) (which is X); a
+        // wide-iv-step with another constant step is uniform by construction
+        // and lowered to a scalar before execution.
+        if (auto *BI = dyn_cast_or_null<VPInstruction>(V->getDefiningRecipe()))
+          if (BI->getOpcode() == VPInstruction::Broadcast)
+            V = BI->getOperand(0);
+        if (auto *BI = dyn_cast_or_null<VPInstruction>(V->getDefiningRecipe()))
+          if (BI->getOpcode() == VPInstruction::WideIVStep) {
+            if (match(BI->getOperand(1), m_One()))
+              V = BI->getOperand(0);
+            return true;
+          }
+        return vputils::isSingleScalar(V);
+      };
+      VPValue *SA = A, *SB = B;
+      if (IsUniformScalar(SB)) {
+        Offsets.push_back(SB);
+        ShAmt = A;
+      } else if (IsUniformScalar(SA)) {
+        Offsets.push_back(SA);
+        ShAmt = B;
+      } else
+        break;
+    }
+    auto *IVR = dyn_cast<VPWidenIntOrFpInductionRecipe>(ShAmt);
+    if (!IVR || !match(IVR->getStartValue(), m_ZeroInt()) ||
+        !match(IVR->getStepValue(), m_One()))
+      continue;
+
+    DebugLoc DL = Red->getDebugLoc();
+    VPBuilder B(Red);
+    VPValue *Packed = B.createNaryOp(VPInstruction::BitPackMask, {Mask}, AccTy,
+                                     /*Flags=*/{}, DL, "bitpack");
+    // The canonical IV is the bit offset of this vector iteration's chunk; it
+    // may be wider than the accumulator when LV narrowed the induction.
+    VPValue *Base =
+        B.createScalarZExtOrTrunc(Region->getCanonicalIV(), AccTy, DL);
+    for (VPValue *Off : Offsets) {
+      VPValue *OffScalar = B.createScalarZExtOrTrunc(Off, AccTy, DL);
+      Base = B.createNaryOp(
+          Instruction::Add, {Base, OffScalar},
+          VPIRFlags::getDefaultFlags(Instruction::Add, AccTy), DL);
+    }
+    VPValue *Shifted = B.createNaryOp(
+        Instruction::Shl, {Packed, Base},
+        VPIRFlags::getDefaultFlags(Instruction::Shl, AccTy), DL, "bitpack.sh");
+    VPValue *Next = B.createNaryOp(
+        Instruction::Or, {RedPhi, Shifted},
+        VPIRFlags::getDefaultFlags(Instruction::Or, AccTy), DL, "bitpack.next");
+
+    Red->replaceAllUsesWith(Next);
+    Red->eraseFromParent();
+    ShlR->eraseFromParent();
+    ZExtR->eraseFromParent();
+    Changed = true;
+  }
+
+  return Changed;
+}
+
 void VPlanTransforms::optimizeForVFAndUF(VPlan &Plan, ElementCount BestVF,
                                          unsigned BestUF,
                                          PredicatedScalarEvolution &PSE) {
@@ -2118,6 +2265,7 @@ void VPlanTransforms::optimizeForVFAndUF(VPlan &Plan, ElementCount BestVF,
       simplifyBranchConditionForVFAndUF(Plan, BestVF, BestUF, PSE);
   MadeChange |= replaceMaskWithCompareForScalarPlan(Plan, BestVF);
   MadeChange |= optimizeVectorInductionWidthForTCAndVFUF(Plan, BestVF, BestUF);
+  MadeChange |= createBitPackReductions(Plan, BestVF);
 
   if (MadeChange) {
     Plan.setVF(BestVF);

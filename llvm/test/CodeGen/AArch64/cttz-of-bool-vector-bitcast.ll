@@ -746,25 +746,11 @@ define i64 @cttz_v64i8_too_many_lanes(<64 x i8> %v) {
 ; CHECK-LE-NEXT:    and v2.16b, v2.16b, v4.16b
 ; CHECK-LE-NEXT:    and v1.16b, v1.16b, v4.16b
 ; CHECK-LE-NEXT:    and v0.16b, v0.16b, v4.16b
-; CHECK-LE-NEXT:    addp v3.16b, v3.16b, v3.16b
-; CHECK-LE-NEXT:    addp v2.16b, v2.16b, v2.16b
-; CHECK-LE-NEXT:    addp v1.16b, v1.16b, v1.16b
+; CHECK-LE-NEXT:    addp v2.16b, v2.16b, v3.16b
+; CHECK-LE-NEXT:    addp v0.16b, v0.16b, v1.16b
+; CHECK-LE-NEXT:    addp v0.16b, v0.16b, v2.16b
 ; CHECK-LE-NEXT:    addp v0.16b, v0.16b, v0.16b
-; CHECK-LE-NEXT:    addp v3.16b, v3.16b, v3.16b
-; CHECK-LE-NEXT:    addp v2.16b, v2.16b, v2.16b
-; CHECK-LE-NEXT:    addp v1.16b, v1.16b, v1.16b
-; CHECK-LE-NEXT:    addp v0.16b, v0.16b, v0.16b
-; CHECK-LE-NEXT:    addp v3.16b, v3.16b, v3.16b
-; CHECK-LE-NEXT:    addp v2.16b, v2.16b, v2.16b
-; CHECK-LE-NEXT:    addp v1.16b, v1.16b, v1.16b
-; CHECK-LE-NEXT:    addp v0.16b, v0.16b, v0.16b
-; CHECK-LE-NEXT:    umov w8, v3.h[0]
-; CHECK-LE-NEXT:    umov w9, v2.h[0]
-; CHECK-LE-NEXT:    umov w10, v1.h[0]
-; CHECK-LE-NEXT:    umov w11, v0.h[0]
-; CHECK-LE-NEXT:    bfi w9, w8, #16, #16
-; CHECK-LE-NEXT:    bfi w11, w10, #16, #16
-; CHECK-LE-NEXT:    orr x8, x11, x9, lsl #32
+; CHECK-LE-NEXT:    fmov x8, d0
 ; CHECK-LE-NEXT:    rbit x8, x8
 ; CHECK-LE-NEXT:    clz x0, x8
 ; CHECK-LE-NEXT:    ret

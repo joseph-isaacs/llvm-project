@@ -1240,8 +1240,7 @@ AArch64TargetLowering::AArch64TargetLowering(const TargetMachine &TM,
   setTargetDAGCombine(ISD::VECTOR_DEINTERLEAVE);
   setTargetDAGCombine(ISD::CTPOP);
 
-  if (Subtarget->isSVEorStreamingSVEAvailable())
-    setTargetDAGCombine(ISD::BITCAST);
+  setTargetDAGCombine(ISD::BITCAST);
 
   // In case of strict alignment, avoid an excessive number of byte wide stores.
   MaxStoresPerMemsetOptSize = 8;
@@ -27538,6 +27537,85 @@ static SDValue vectorToScalarBitmask(SDValue ComparisonResult,
   return DAG.getNode(ISD::VECREDUCE_ADD, DL, ResultVT, RepresentativeBits);
 }
 
+// Bitmask of a 32- or 64-lane fixed <N x i1> vector, as an i64 holding N bits.
+//
+// Type legalisation would split the vector into 16-lane quarters and glue the
+// four i16 bitmasks back together with UMOV/BFI/ORR (or four 2-byte stores),
+// reducing each quarter with three self-pairing ADDPs. Instead, AND each
+// 16-byte piece with the same 1,2,...,128 weights (at most one bit per byte
+// within every 8-byte group, so pairwise add is an OR that cannot carry) and
+// run the ADDP tree *across* the pieces: each of the three levels pairs
+// adjacent pieces, so the 16-bit masks of the pieces land in lane order in the
+// low N/8 bytes of the final vector. 64 lanes take 4 ADDPs, 32 lanes take 3.
+// Must run before type legalisation, like performCTTZCombine().
+static SDValue wideBoolVectorToBitmask(SDValue Pred, const SDLoc &DL,
+                                       SelectionDAG &DAG) {
+  EVT PredVT = Pred.getValueType();
+  if (!PredVT.isFixedLengthVector() || PredVT.getVectorElementType() != MVT::i1)
+    return SDValue();
+  unsigned NumLanes = PredVT.getVectorNumElements();
+  if (NumLanes != 32 && NumLanes != 64)
+    return SDValue();
+  if (!DAG.getSubtarget<AArch64Subtarget>().isNeonAvailable() ||
+      !DAG.getDataLayout().isLittleEndian())
+    return SDValue();
+
+  // Only when the predicate comes from a vector compare (possibly through
+  // logic ops): sign-extending it back to the compare's lanes is free, whereas
+  // an arbitrary <N x i1> (e.g. built from shuffles) would scalarise.
+  EVT MaskVT = tryGetOriginalBoolVectorType(Pred);
+  if (!MaskVT.isSimple() || MaskVT.getVectorNumElements() != NumLanes)
+    return SDValue();
+  MaskVT = MaskVT.changeVectorElementTypeToInteger();
+  EVT ByteVT = MVT::getVectorVT(MVT::i8, NumLanes);
+  SDValue Mask = DAG.getSExtOrTrunc(Pred, DL, MaskVT);
+  if (MaskVT != ByteVT)
+    Mask = DAG.getNode(ISD::TRUNCATE, DL, ByteVT, Mask);
+
+  SmallVector<SDValue, 16> WeightConstants;
+  for (unsigned Half = 0; Half < 2; ++Half)
+    for (unsigned I = 0; I < 8; ++I)
+      WeightConstants.push_back(DAG.getConstant(1u << I, DL, MVT::i32));
+  SDValue Weights =
+      DAG.getNode(ISD::BUILD_VECTOR, DL, MVT::v16i8, WeightConstants);
+
+  SmallVector<SDValue, 4> Pieces;
+  for (unsigned P = 0; P < NumLanes / 16; ++P) {
+    SDValue Piece = DAG.getExtractSubvector(DL, MVT::v16i8, Mask, P * 16);
+    Pieces.push_back(DAG.getNode(ISD::AND, DL, MVT::v16i8, Piece, Weights));
+  }
+
+  for (unsigned Level = 0; Level < 3; ++Level) {
+    SmallVector<SDValue, 4> Next;
+    for (unsigned I = 0; I < Pieces.size(); I += 2) {
+      SDValue Lo = Pieces[I];
+      SDValue Hi = I + 1 < Pieces.size() ? Pieces[I + 1] : Lo;
+      Next.push_back(DAG.getNode(AArch64ISD::ADDP, DL, MVT::v16i8, Lo, Hi));
+    }
+    Pieces = std::move(Next);
+  }
+  assert(Pieces.size() == 1 && "ADDP tree should end in one vector");
+
+  SDValue Packed = DAG.getBitcast(MVT::v2i64, Pieces[0]);
+  return DAG.getExtractVectorElt(DL, MVT::i64, Packed, 0);
+}
+
+// Fold (bitcast <32|64 x i1> to i32|i64) into the cross-piece ADDP tree before
+// the type legaliser splits the operand.
+static SDValue performWideBoolVectorBitcastCombine(
+    SDNode *N, TargetLowering::DAGCombinerInfo &DCI, SelectionDAG &DAG) {
+  if (!DCI.isBeforeLegalize())
+    return SDValue();
+  EVT VT = N->getValueType(0);
+  if (!VT.isScalarInteger())
+    return SDValue();
+  SDLoc DL(N);
+  SDValue Bits = wideBoolVectorToBitmask(N->getOperand(0), DL, DAG);
+  if (!Bits)
+    return SDValue();
+  return DAG.getZExtOrTrunc(Bits, DL, VT);
+}
+
 // When taking the trailing-zero count of a bitcast from <N x i1> to scalar
 // iN, we can pack each lane into a small bit-slot of a 64-bit scalar
 // with shrn (for byte lanes) or xtn (for wider lanes) then run a
@@ -27838,6 +27916,20 @@ static SDValue performSTORECombine(SDNode *N,
   EVT MemVT = ST->getMemoryVT();
   const TargetLowering &TLI = DAG.getTargetLoweringInfo();
   SDLoc DL(ST);
+
+  // A store of a <32|64 x i1> vector: pack it with the cross-piece ADDP tree
+  // and store one i32/i64 instead of letting the type legaliser split it into
+  // 16-lane pieces stored as four halfwords.
+  if (DCI.isBeforeLegalize() && ISD::isNormalStore(N) && MemVT == ValueVT &&
+      ValueVT.isFixedLengthVector() &&
+      ValueVT.getVectorElementType() == MVT::i1) {
+    if (SDValue Bits = wideBoolVectorToBitmask(Value, DL, DAG)) {
+      EVT StoreVT =
+          EVT::getIntegerVT(*DAG.getContext(), MemVT.getStoreSizeInBits());
+      return DAG.getStore(Chain, DL, DAG.getZExtOrTrunc(Bits, DL, StoreVT), Ptr,
+                          ST->getMemOperand());
+    }
+  }
 
   // Fixed length svbool_t store operations use an i8 vector as the underlying
   // memory type which is cast from a scalable boolean vector. This combine
@@ -31956,6 +32048,8 @@ SDValue AArch64TargetLowering::PerformDAGCombine(SDNode *N,
   case ISD::CTPOP:
     return performCTPOPCombine(N, DCI, DAG);
   case ISD::BITCAST:
+    if (SDValue Res = performWideBoolVectorBitcastCombine(N, DCI, DAG))
+      return Res;
     return performPredicateLoadCombine(N, DCI, DAG);
   }
   return SDValue();

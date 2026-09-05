@@ -8,6 +8,12 @@
 ; CHECK-GI-NEXT:  warning: Instruction selection used fallback path for convert_to_bitmask_2xi32
 ; CHECK-GI-NEXT:  warning: Instruction selection used fallback path for bitmask_v32i8_split
 ; CHECK-GI-NEXT:  warning: Instruction selection used fallback path for example.safeAdd
+; CHECK-GI-NEXT:  warning: Instruction selection used fallback path for bitmask_v32i8
+; CHECK-GI-NEXT:  warning: Instruction selection used fallback path for bitmask_v64i8
+; CHECK-GI-NEXT:  warning: Instruction selection used fallback path for bitmask_v32i16
+; CHECK-GI-NEXT:  warning: Instruction selection used fallback path for bitmask_v64i8_cmp
+; CHECK-GI-NEXT:  warning: Instruction selection used fallback path for bitmask_v64i8_store
+; CHECK-GI-NEXT:  warning: Instruction selection used fallback path for bitmask_v32i8_store
 
 ; Basic tests from input vector to bitmask
 ; IR generated from clang for:
@@ -1195,14 +1201,10 @@ define <32 x i1> @bitmask_v32i8_split(<32 x i8> %a, <32 x i8> %b) {
 ; CHECK-NEXT:    ldr q2, [x9, lCPI21_0@PAGEOFF]
 ; CHECK-NEXT:    and.16b v1, v1, v2
 ; CHECK-NEXT:    and.16b v0, v0, v2
-; CHECK-NEXT:    addp.16b v1, v1, v1
+; CHECK-NEXT:    addp.16b v0, v0, v1
 ; CHECK-NEXT:    addp.16b v0, v0, v0
-; CHECK-NEXT:    addp.16b v1, v1, v1
 ; CHECK-NEXT:    addp.16b v0, v0, v0
-; CHECK-NEXT:    addp.16b v1, v1, v1
-; CHECK-NEXT:    addp.16b v0, v0, v0
-; CHECK-NEXT:    str h1, [x8, #2]
-; CHECK-NEXT:    str h0, [x8]
+; CHECK-NEXT:    str s0, [x8]
 ; CHECK-NEXT:    ret
   %r = icmp eq <32 x i8> %a, %b
   ret <32 x i1> %r
@@ -1594,4 +1596,470 @@ define i8 @bitmask_v8i32_sve(<8 x i32> %v) vscale_range(2,2) "target-features"="
   %c = icmp ne <8 x i32> %v, zeroinitializer
   %b = bitcast <8 x i1> %c to i8
   ret i8 %b
+}
+
+; 32 and 64 lanes: the ADDP tree runs across the 16-lane pieces instead of
+; reducing each piece alone and gluing the i16 results together.
+define i32 @bitmask_v32i8(<32 x i8> %v) {
+; CHECK-LABEL: bitmask_v32i8:
+; CHECK:       ; %bb.0:
+; CHECK-NEXT:    adrp x8, lCPI30_0@PAGE
+; CHECK-NEXT:    cmeq.16b v1, v1, #0
+; CHECK-NEXT:    cmeq.16b v0, v0, #0
+; CHECK-NEXT:    ldr q2, [x8, lCPI30_0@PAGEOFF]
+; CHECK-NEXT:    bic.16b v1, v2, v1
+; CHECK-NEXT:    bic.16b v0, v2, v0
+; CHECK-NEXT:    addp.16b v0, v0, v1
+; CHECK-NEXT:    addp.16b v0, v0, v0
+; CHECK-NEXT:    addp.16b v0, v0, v0
+; CHECK-NEXT:    fmov w0, s0
+; CHECK-NEXT:    ret
+;
+; CHECK-LE-LABEL: bitmask_v32i8:
+; CHECK-LE:       // %bb.0:
+; CHECK-LE-NEXT:    adrp x8, .LCPI30_0
+; CHECK-LE-NEXT:    cmeq v1.16b, v1.16b, #0
+; CHECK-LE-NEXT:    cmeq v0.16b, v0.16b, #0
+; CHECK-LE-NEXT:    ldr q2, [x8, :lo12:.LCPI30_0]
+; CHECK-LE-NEXT:    bic v1.16b, v2.16b, v1.16b
+; CHECK-LE-NEXT:    bic v0.16b, v2.16b, v0.16b
+; CHECK-LE-NEXT:    addp v0.16b, v0.16b, v1.16b
+; CHECK-LE-NEXT:    addp v0.16b, v0.16b, v0.16b
+; CHECK-LE-NEXT:    addp v0.16b, v0.16b, v0.16b
+; CHECK-LE-NEXT:    fmov w0, s0
+; CHECK-LE-NEXT:    ret
+;
+; CHECK-BE-LABEL: bitmask_v32i8:
+; CHECK-BE:       // %bb.0:
+; CHECK-BE-NEXT:    rev64 v1.16b, v1.16b
+; CHECK-BE-NEXT:    rev64 v0.16b, v0.16b
+; CHECK-BE-NEXT:    adrp x8, .LCPI30_0
+; CHECK-BE-NEXT:    add x8, x8, :lo12:.LCPI30_0
+; CHECK-BE-NEXT:    ld1 { v2.16b }, [x8]
+; CHECK-BE-NEXT:    ext v1.16b, v1.16b, v1.16b, #8
+; CHECK-BE-NEXT:    ext v0.16b, v0.16b, v0.16b, #8
+; CHECK-BE-NEXT:    cmeq v0.16b, v0.16b, #0
+; CHECK-BE-NEXT:    cmeq v1.16b, v1.16b, #0
+; CHECK-BE-NEXT:    bic v0.16b, v2.16b, v0.16b
+; CHECK-BE-NEXT:    bic v1.16b, v2.16b, v1.16b
+; CHECK-BE-NEXT:    addp v0.16b, v0.16b, v0.16b
+; CHECK-BE-NEXT:    addp v1.16b, v1.16b, v1.16b
+; CHECK-BE-NEXT:    addp v0.16b, v0.16b, v0.16b
+; CHECK-BE-NEXT:    addp v1.16b, v1.16b, v1.16b
+; CHECK-BE-NEXT:    addp v0.16b, v0.16b, v0.16b
+; CHECK-BE-NEXT:    addp v1.16b, v1.16b, v1.16b
+; CHECK-BE-NEXT:    rev16 v0.16b, v0.16b
+; CHECK-BE-NEXT:    rev16 v1.16b, v1.16b
+; CHECK-BE-NEXT:    umov w8, v0.h[0]
+; CHECK-BE-NEXT:    umov w0, v1.h[0]
+; CHECK-BE-NEXT:    bfi w0, w8, #16, #16
+; CHECK-BE-NEXT:    ret
+  %c = icmp ne <32 x i8> %v, zeroinitializer
+  %m = bitcast <32 x i1> %c to i32
+  ret i32 %m
+}
+
+define i64 @bitmask_v64i8(<64 x i8> %v) {
+; CHECK-LABEL: bitmask_v64i8:
+; CHECK:       ; %bb.0:
+; CHECK-NEXT:    adrp x8, lCPI31_0@PAGE
+; CHECK-NEXT:    cmeq.16b v3, v3, #0
+; CHECK-NEXT:    cmeq.16b v2, v2, #0
+; CHECK-NEXT:    cmeq.16b v1, v1, #0
+; CHECK-NEXT:    cmeq.16b v0, v0, #0
+; CHECK-NEXT:    ldr q4, [x8, lCPI31_0@PAGEOFF]
+; CHECK-NEXT:    bic.16b v3, v4, v3
+; CHECK-NEXT:    bic.16b v2, v4, v2
+; CHECK-NEXT:    bic.16b v1, v4, v1
+; CHECK-NEXT:    bic.16b v0, v4, v0
+; CHECK-NEXT:    addp.16b v2, v2, v3
+; CHECK-NEXT:    addp.16b v0, v0, v1
+; CHECK-NEXT:    addp.16b v0, v0, v2
+; CHECK-NEXT:    addp.16b v0, v0, v0
+; CHECK-NEXT:    fmov x0, d0
+; CHECK-NEXT:    ret
+;
+; CHECK-LE-LABEL: bitmask_v64i8:
+; CHECK-LE:       // %bb.0:
+; CHECK-LE-NEXT:    adrp x8, .LCPI31_0
+; CHECK-LE-NEXT:    cmeq v3.16b, v3.16b, #0
+; CHECK-LE-NEXT:    cmeq v2.16b, v2.16b, #0
+; CHECK-LE-NEXT:    cmeq v1.16b, v1.16b, #0
+; CHECK-LE-NEXT:    cmeq v0.16b, v0.16b, #0
+; CHECK-LE-NEXT:    ldr q4, [x8, :lo12:.LCPI31_0]
+; CHECK-LE-NEXT:    bic v3.16b, v4.16b, v3.16b
+; CHECK-LE-NEXT:    bic v2.16b, v4.16b, v2.16b
+; CHECK-LE-NEXT:    bic v1.16b, v4.16b, v1.16b
+; CHECK-LE-NEXT:    bic v0.16b, v4.16b, v0.16b
+; CHECK-LE-NEXT:    addp v2.16b, v2.16b, v3.16b
+; CHECK-LE-NEXT:    addp v0.16b, v0.16b, v1.16b
+; CHECK-LE-NEXT:    addp v0.16b, v0.16b, v2.16b
+; CHECK-LE-NEXT:    addp v0.16b, v0.16b, v0.16b
+; CHECK-LE-NEXT:    fmov x0, d0
+; CHECK-LE-NEXT:    ret
+;
+; CHECK-BE-LABEL: bitmask_v64i8:
+; CHECK-BE:       // %bb.0:
+; CHECK-BE-NEXT:    rev64 v0.16b, v0.16b
+; CHECK-BE-NEXT:    rev64 v3.16b, v3.16b
+; CHECK-BE-NEXT:    adrp x8, .LCPI31_0
+; CHECK-BE-NEXT:    add x8, x8, :lo12:.LCPI31_0
+; CHECK-BE-NEXT:    rev64 v2.16b, v2.16b
+; CHECK-BE-NEXT:    rev64 v1.16b, v1.16b
+; CHECK-BE-NEXT:    ld1 { v4.16b }, [x8]
+; CHECK-BE-NEXT:    ext v0.16b, v0.16b, v0.16b, #8
+; CHECK-BE-NEXT:    ext v3.16b, v3.16b, v3.16b, #8
+; CHECK-BE-NEXT:    ext v2.16b, v2.16b, v2.16b, #8
+; CHECK-BE-NEXT:    ext v1.16b, v1.16b, v1.16b, #8
+; CHECK-BE-NEXT:    cmeq v0.16b, v0.16b, #0
+; CHECK-BE-NEXT:    cmeq v3.16b, v3.16b, #0
+; CHECK-BE-NEXT:    cmeq v1.16b, v1.16b, #0
+; CHECK-BE-NEXT:    cmeq v2.16b, v2.16b, #0
+; CHECK-BE-NEXT:    bic v0.16b, v4.16b, v0.16b
+; CHECK-BE-NEXT:    bic v3.16b, v4.16b, v3.16b
+; CHECK-BE-NEXT:    bic v1.16b, v4.16b, v1.16b
+; CHECK-BE-NEXT:    bic v2.16b, v4.16b, v2.16b
+; CHECK-BE-NEXT:    addp v0.16b, v0.16b, v0.16b
+; CHECK-BE-NEXT:    addp v3.16b, v3.16b, v3.16b
+; CHECK-BE-NEXT:    addp v1.16b, v1.16b, v1.16b
+; CHECK-BE-NEXT:    addp v2.16b, v2.16b, v2.16b
+; CHECK-BE-NEXT:    addp v0.16b, v0.16b, v0.16b
+; CHECK-BE-NEXT:    addp v3.16b, v3.16b, v3.16b
+; CHECK-BE-NEXT:    addp v1.16b, v1.16b, v1.16b
+; CHECK-BE-NEXT:    addp v2.16b, v2.16b, v2.16b
+; CHECK-BE-NEXT:    addp v0.16b, v0.16b, v0.16b
+; CHECK-BE-NEXT:    addp v3.16b, v3.16b, v3.16b
+; CHECK-BE-NEXT:    addp v1.16b, v1.16b, v1.16b
+; CHECK-BE-NEXT:    addp v2.16b, v2.16b, v2.16b
+; CHECK-BE-NEXT:    rev16 v0.16b, v0.16b
+; CHECK-BE-NEXT:    rev16 v3.16b, v3.16b
+; CHECK-BE-NEXT:    rev16 v1.16b, v1.16b
+; CHECK-BE-NEXT:    rev16 v2.16b, v2.16b
+; CHECK-BE-NEXT:    umov w8, v0.h[0]
+; CHECK-BE-NEXT:    umov w11, v3.h[0]
+; CHECK-BE-NEXT:    umov w9, v1.h[0]
+; CHECK-BE-NEXT:    umov w10, v2.h[0]
+; CHECK-BE-NEXT:    bfi w9, w8, #16, #16
+; CHECK-BE-NEXT:    bfi w11, w10, #16, #16
+; CHECK-BE-NEXT:    orr x0, x11, x9, lsl #32
+; CHECK-BE-NEXT:    ret
+  %c = icmp ne <64 x i8> %v, zeroinitializer
+  %m = bitcast <64 x i1> %c to i64
+  ret i64 %m
+}
+
+define i32 @bitmask_v32i16(<32 x i16> %v) {
+; CHECK-LABEL: bitmask_v32i16:
+; CHECK:       ; %bb.0:
+; CHECK-NEXT:    cmeq.8h v3, v3, #0
+; CHECK-NEXT:    cmeq.8h v2, v2, #0
+; CHECK-NEXT:    adrp x8, lCPI32_0@PAGE
+; CHECK-NEXT:    cmeq.8h v1, v1, #0
+; CHECK-NEXT:    cmeq.8h v0, v0, #0
+; CHECK-NEXT:    uzp1.16b v2, v2, v3
+; CHECK-NEXT:    uzp1.16b v0, v0, v1
+; CHECK-NEXT:    ldr q1, [x8, lCPI32_0@PAGEOFF]
+; CHECK-NEXT:    bic.16b v2, v1, v2
+; CHECK-NEXT:    bic.16b v0, v1, v0
+; CHECK-NEXT:    addp.16b v0, v0, v2
+; CHECK-NEXT:    addp.16b v0, v0, v0
+; CHECK-NEXT:    addp.16b v0, v0, v0
+; CHECK-NEXT:    fmov w0, s0
+; CHECK-NEXT:    ret
+;
+; CHECK-LE-LABEL: bitmask_v32i16:
+; CHECK-LE:       // %bb.0:
+; CHECK-LE-NEXT:    cmeq v3.8h, v3.8h, #0
+; CHECK-LE-NEXT:    cmeq v2.8h, v2.8h, #0
+; CHECK-LE-NEXT:    adrp x8, .LCPI32_0
+; CHECK-LE-NEXT:    cmeq v1.8h, v1.8h, #0
+; CHECK-LE-NEXT:    cmeq v0.8h, v0.8h, #0
+; CHECK-LE-NEXT:    uzp1 v2.16b, v2.16b, v3.16b
+; CHECK-LE-NEXT:    uzp1 v0.16b, v0.16b, v1.16b
+; CHECK-LE-NEXT:    ldr q1, [x8, :lo12:.LCPI32_0]
+; CHECK-LE-NEXT:    bic v2.16b, v1.16b, v2.16b
+; CHECK-LE-NEXT:    bic v0.16b, v1.16b, v0.16b
+; CHECK-LE-NEXT:    addp v0.16b, v0.16b, v2.16b
+; CHECK-LE-NEXT:    addp v0.16b, v0.16b, v0.16b
+; CHECK-LE-NEXT:    addp v0.16b, v0.16b, v0.16b
+; CHECK-LE-NEXT:    fmov w0, s0
+; CHECK-LE-NEXT:    ret
+;
+; CHECK-BE-LABEL: bitmask_v32i16:
+; CHECK-BE:       // %bb.0:
+; CHECK-BE-NEXT:    rev64 v1.8h, v1.8h
+; CHECK-BE-NEXT:    rev64 v2.8h, v2.8h
+; CHECK-BE-NEXT:    adrp x8, .LCPI32_0
+; CHECK-BE-NEXT:    add x8, x8, :lo12:.LCPI32_0
+; CHECK-BE-NEXT:    rev64 v3.8h, v3.8h
+; CHECK-BE-NEXT:    rev64 v0.8h, v0.8h
+; CHECK-BE-NEXT:    ext v1.16b, v1.16b, v1.16b, #8
+; CHECK-BE-NEXT:    ext v2.16b, v2.16b, v2.16b, #8
+; CHECK-BE-NEXT:    ext v3.16b, v3.16b, v3.16b, #8
+; CHECK-BE-NEXT:    ext v0.16b, v0.16b, v0.16b, #8
+; CHECK-BE-NEXT:    cmeq v1.8h, v1.8h, #0
+; CHECK-BE-NEXT:    cmeq v2.8h, v2.8h, #0
+; CHECK-BE-NEXT:    cmeq v0.8h, v0.8h, #0
+; CHECK-BE-NEXT:    cmeq v3.8h, v3.8h, #0
+; CHECK-BE-NEXT:    uzp1 v0.16b, v0.16b, v1.16b
+; CHECK-BE-NEXT:    uzp1 v1.16b, v2.16b, v3.16b
+; CHECK-BE-NEXT:    ld1 { v2.16b }, [x8]
+; CHECK-BE-NEXT:    bic v0.16b, v2.16b, v0.16b
+; CHECK-BE-NEXT:    bic v1.16b, v2.16b, v1.16b
+; CHECK-BE-NEXT:    addp v0.16b, v0.16b, v0.16b
+; CHECK-BE-NEXT:    addp v1.16b, v1.16b, v1.16b
+; CHECK-BE-NEXT:    addp v0.16b, v0.16b, v0.16b
+; CHECK-BE-NEXT:    addp v1.16b, v1.16b, v1.16b
+; CHECK-BE-NEXT:    addp v0.16b, v0.16b, v0.16b
+; CHECK-BE-NEXT:    addp v1.16b, v1.16b, v1.16b
+; CHECK-BE-NEXT:    rev16 v0.16b, v0.16b
+; CHECK-BE-NEXT:    rev16 v1.16b, v1.16b
+; CHECK-BE-NEXT:    umov w8, v0.h[0]
+; CHECK-BE-NEXT:    umov w0, v1.h[0]
+; CHECK-BE-NEXT:    bfi w0, w8, #16, #16
+; CHECK-BE-NEXT:    ret
+  %c = icmp ne <32 x i16> %v, zeroinitializer
+  %m = bitcast <32 x i1> %c to i32
+  ret i32 %m
+}
+
+define i64 @bitmask_v64i8_cmp(<64 x i8> %a, <64 x i8> %b) {
+; CHECK-LABEL: bitmask_v64i8_cmp:
+; CHECK:       ; %bb.0:
+; CHECK-NEXT:    adrp x8, lCPI33_0@PAGE
+; CHECK-NEXT:    cmeq.16b v3, v3, v7
+; CHECK-NEXT:    cmeq.16b v2, v2, v6
+; CHECK-NEXT:    cmeq.16b v1, v1, v5
+; CHECK-NEXT:    cmeq.16b v0, v0, v4
+; CHECK-NEXT:    ldr q7, [x8, lCPI33_0@PAGEOFF]
+; CHECK-NEXT:    and.16b v3, v3, v7
+; CHECK-NEXT:    and.16b v2, v2, v7
+; CHECK-NEXT:    and.16b v1, v1, v7
+; CHECK-NEXT:    and.16b v0, v0, v7
+; CHECK-NEXT:    addp.16b v2, v2, v3
+; CHECK-NEXT:    addp.16b v0, v0, v1
+; CHECK-NEXT:    addp.16b v0, v0, v2
+; CHECK-NEXT:    addp.16b v0, v0, v0
+; CHECK-NEXT:    fmov x0, d0
+; CHECK-NEXT:    ret
+;
+; CHECK-LE-LABEL: bitmask_v64i8_cmp:
+; CHECK-LE:       // %bb.0:
+; CHECK-LE-NEXT:    adrp x8, .LCPI33_0
+; CHECK-LE-NEXT:    cmeq v3.16b, v3.16b, v7.16b
+; CHECK-LE-NEXT:    cmeq v2.16b, v2.16b, v6.16b
+; CHECK-LE-NEXT:    cmeq v1.16b, v1.16b, v5.16b
+; CHECK-LE-NEXT:    cmeq v0.16b, v0.16b, v4.16b
+; CHECK-LE-NEXT:    ldr q7, [x8, :lo12:.LCPI33_0]
+; CHECK-LE-NEXT:    and v3.16b, v3.16b, v7.16b
+; CHECK-LE-NEXT:    and v2.16b, v2.16b, v7.16b
+; CHECK-LE-NEXT:    and v1.16b, v1.16b, v7.16b
+; CHECK-LE-NEXT:    and v0.16b, v0.16b, v7.16b
+; CHECK-LE-NEXT:    addp v2.16b, v2.16b, v3.16b
+; CHECK-LE-NEXT:    addp v0.16b, v0.16b, v1.16b
+; CHECK-LE-NEXT:    addp v0.16b, v0.16b, v2.16b
+; CHECK-LE-NEXT:    addp v0.16b, v0.16b, v0.16b
+; CHECK-LE-NEXT:    fmov x0, d0
+; CHECK-LE-NEXT:    ret
+;
+; CHECK-BE-LABEL: bitmask_v64i8_cmp:
+; CHECK-BE:       // %bb.0:
+; CHECK-BE-NEXT:    rev64 v7.16b, v7.16b
+; CHECK-BE-NEXT:    rev64 v3.16b, v3.16b
+; CHECK-BE-NEXT:    adrp x8, .LCPI33_0
+; CHECK-BE-NEXT:    add x8, x8, :lo12:.LCPI33_0
+; CHECK-BE-NEXT:    rev64 v6.16b, v6.16b
+; CHECK-BE-NEXT:    rev64 v4.16b, v4.16b
+; CHECK-BE-NEXT:    rev64 v0.16b, v0.16b
+; CHECK-BE-NEXT:    rev64 v2.16b, v2.16b
+; CHECK-BE-NEXT:    rev64 v5.16b, v5.16b
+; CHECK-BE-NEXT:    rev64 v1.16b, v1.16b
+; CHECK-BE-NEXT:    ext v7.16b, v7.16b, v7.16b, #8
+; CHECK-BE-NEXT:    ext v3.16b, v3.16b, v3.16b, #8
+; CHECK-BE-NEXT:    ext v6.16b, v6.16b, v6.16b, #8
+; CHECK-BE-NEXT:    ext v4.16b, v4.16b, v4.16b, #8
+; CHECK-BE-NEXT:    ext v0.16b, v0.16b, v0.16b, #8
+; CHECK-BE-NEXT:    ext v2.16b, v2.16b, v2.16b, #8
+; CHECK-BE-NEXT:    ext v5.16b, v5.16b, v5.16b, #8
+; CHECK-BE-NEXT:    ext v1.16b, v1.16b, v1.16b, #8
+; CHECK-BE-NEXT:    cmeq v3.16b, v3.16b, v7.16b
+; CHECK-BE-NEXT:    cmeq v0.16b, v0.16b, v4.16b
+; CHECK-BE-NEXT:    ld1 { v4.16b }, [x8]
+; CHECK-BE-NEXT:    cmeq v2.16b, v2.16b, v6.16b
+; CHECK-BE-NEXT:    cmeq v1.16b, v1.16b, v5.16b
+; CHECK-BE-NEXT:    and v0.16b, v0.16b, v4.16b
+; CHECK-BE-NEXT:    and v2.16b, v2.16b, v4.16b
+; CHECK-BE-NEXT:    and v3.16b, v3.16b, v4.16b
+; CHECK-BE-NEXT:    and v1.16b, v1.16b, v4.16b
+; CHECK-BE-NEXT:    addp v0.16b, v0.16b, v0.16b
+; CHECK-BE-NEXT:    addp v2.16b, v2.16b, v2.16b
+; CHECK-BE-NEXT:    addp v3.16b, v3.16b, v3.16b
+; CHECK-BE-NEXT:    addp v1.16b, v1.16b, v1.16b
+; CHECK-BE-NEXT:    addp v0.16b, v0.16b, v0.16b
+; CHECK-BE-NEXT:    addp v2.16b, v2.16b, v2.16b
+; CHECK-BE-NEXT:    addp v3.16b, v3.16b, v3.16b
+; CHECK-BE-NEXT:    addp v1.16b, v1.16b, v1.16b
+; CHECK-BE-NEXT:    addp v0.16b, v0.16b, v0.16b
+; CHECK-BE-NEXT:    addp v2.16b, v2.16b, v2.16b
+; CHECK-BE-NEXT:    addp v3.16b, v3.16b, v3.16b
+; CHECK-BE-NEXT:    addp v1.16b, v1.16b, v1.16b
+; CHECK-BE-NEXT:    rev16 v0.16b, v0.16b
+; CHECK-BE-NEXT:    rev16 v2.16b, v2.16b
+; CHECK-BE-NEXT:    rev16 v3.16b, v3.16b
+; CHECK-BE-NEXT:    rev16 v1.16b, v1.16b
+; CHECK-BE-NEXT:    umov w8, v0.h[0]
+; CHECK-BE-NEXT:    umov w10, v2.h[0]
+; CHECK-BE-NEXT:    umov w11, v3.h[0]
+; CHECK-BE-NEXT:    umov w9, v1.h[0]
+; CHECK-BE-NEXT:    bfi w11, w10, #16, #16
+; CHECK-BE-NEXT:    bfi w9, w8, #16, #16
+; CHECK-BE-NEXT:    orr x0, x11, x9, lsl #32
+; CHECK-BE-NEXT:    ret
+  %c = icmp eq <64 x i8> %a, %b
+  %m = bitcast <64 x i1> %c to i64
+  ret i64 %m
+}
+
+define void @bitmask_v64i8_store(<64 x i8> %v, ptr %p) {
+; CHECK-LABEL: bitmask_v64i8_store:
+; CHECK:       ; %bb.0:
+; CHECK-NEXT:    adrp x8, lCPI34_0@PAGE
+; CHECK-NEXT:    cmeq.16b v3, v3, #0
+; CHECK-NEXT:    cmeq.16b v2, v2, #0
+; CHECK-NEXT:    cmeq.16b v1, v1, #0
+; CHECK-NEXT:    cmeq.16b v0, v0, #0
+; CHECK-NEXT:    ldr q4, [x8, lCPI34_0@PAGEOFF]
+; CHECK-NEXT:    bic.16b v3, v4, v3
+; CHECK-NEXT:    bic.16b v2, v4, v2
+; CHECK-NEXT:    bic.16b v1, v4, v1
+; CHECK-NEXT:    bic.16b v0, v4, v0
+; CHECK-NEXT:    addp.16b v2, v2, v3
+; CHECK-NEXT:    addp.16b v0, v0, v1
+; CHECK-NEXT:    addp.16b v0, v0, v2
+; CHECK-NEXT:    addp.16b v0, v0, v0
+; CHECK-NEXT:    str d0, [x0]
+; CHECK-NEXT:    ret
+;
+; CHECK-LE-LABEL: bitmask_v64i8_store:
+; CHECK-LE:       // %bb.0:
+; CHECK-LE-NEXT:    adrp x8, .LCPI34_0
+; CHECK-LE-NEXT:    cmeq v3.16b, v3.16b, #0
+; CHECK-LE-NEXT:    cmeq v2.16b, v2.16b, #0
+; CHECK-LE-NEXT:    cmeq v1.16b, v1.16b, #0
+; CHECK-LE-NEXT:    cmeq v0.16b, v0.16b, #0
+; CHECK-LE-NEXT:    ldr q4, [x8, :lo12:.LCPI34_0]
+; CHECK-LE-NEXT:    bic v3.16b, v4.16b, v3.16b
+; CHECK-LE-NEXT:    bic v2.16b, v4.16b, v2.16b
+; CHECK-LE-NEXT:    bic v1.16b, v4.16b, v1.16b
+; CHECK-LE-NEXT:    bic v0.16b, v4.16b, v0.16b
+; CHECK-LE-NEXT:    addp v2.16b, v2.16b, v3.16b
+; CHECK-LE-NEXT:    addp v0.16b, v0.16b, v1.16b
+; CHECK-LE-NEXT:    addp v0.16b, v0.16b, v2.16b
+; CHECK-LE-NEXT:    addp v0.16b, v0.16b, v0.16b
+; CHECK-LE-NEXT:    str d0, [x0]
+; CHECK-LE-NEXT:    ret
+;
+; CHECK-BE-LABEL: bitmask_v64i8_store:
+; CHECK-BE:       // %bb.0:
+; CHECK-BE-NEXT:    rev64 v3.16b, v3.16b
+; CHECK-BE-NEXT:    rev64 v2.16b, v2.16b
+; CHECK-BE-NEXT:    adrp x8, .LCPI34_0
+; CHECK-BE-NEXT:    add x8, x8, :lo12:.LCPI34_0
+; CHECK-BE-NEXT:    rev64 v1.16b, v1.16b
+; CHECK-BE-NEXT:    rev64 v0.16b, v0.16b
+; CHECK-BE-NEXT:    ld1 { v4.16b }, [x8]
+; CHECK-BE-NEXT:    ext v3.16b, v3.16b, v3.16b, #8
+; CHECK-BE-NEXT:    ext v2.16b, v2.16b, v2.16b, #8
+; CHECK-BE-NEXT:    ext v1.16b, v1.16b, v1.16b, #8
+; CHECK-BE-NEXT:    ext v0.16b, v0.16b, v0.16b, #8
+; CHECK-BE-NEXT:    cmeq v3.16b, v3.16b, #0
+; CHECK-BE-NEXT:    cmeq v2.16b, v2.16b, #0
+; CHECK-BE-NEXT:    cmeq v1.16b, v1.16b, #0
+; CHECK-BE-NEXT:    cmeq v0.16b, v0.16b, #0
+; CHECK-BE-NEXT:    bic v3.16b, v4.16b, v3.16b
+; CHECK-BE-NEXT:    bic v2.16b, v4.16b, v2.16b
+; CHECK-BE-NEXT:    bic v1.16b, v4.16b, v1.16b
+; CHECK-BE-NEXT:    bic v0.16b, v4.16b, v0.16b
+; CHECK-BE-NEXT:    addp v3.16b, v3.16b, v3.16b
+; CHECK-BE-NEXT:    addp v2.16b, v2.16b, v2.16b
+; CHECK-BE-NEXT:    addp v1.16b, v1.16b, v1.16b
+; CHECK-BE-NEXT:    addp v0.16b, v0.16b, v0.16b
+; CHECK-BE-NEXT:    addp v3.16b, v3.16b, v3.16b
+; CHECK-BE-NEXT:    addp v2.16b, v2.16b, v2.16b
+; CHECK-BE-NEXT:    addp v1.16b, v1.16b, v1.16b
+; CHECK-BE-NEXT:    addp v0.16b, v0.16b, v0.16b
+; CHECK-BE-NEXT:    addp v3.16b, v3.16b, v3.16b
+; CHECK-BE-NEXT:    addp v2.16b, v2.16b, v2.16b
+; CHECK-BE-NEXT:    addp v1.16b, v1.16b, v1.16b
+; CHECK-BE-NEXT:    addp v0.16b, v0.16b, v0.16b
+; CHECK-BE-NEXT:    rev16 v3.16b, v3.16b
+; CHECK-BE-NEXT:    rev16 v2.16b, v2.16b
+; CHECK-BE-NEXT:    rev16 v1.16b, v1.16b
+; CHECK-BE-NEXT:    rev16 v0.16b, v0.16b
+; CHECK-BE-NEXT:    str h3, [x0, #6]
+; CHECK-BE-NEXT:    str h2, [x0, #4]
+; CHECK-BE-NEXT:    str h1, [x0, #2]
+; CHECK-BE-NEXT:    str h0, [x0]
+; CHECK-BE-NEXT:    ret
+  %c = icmp ne <64 x i8> %v, zeroinitializer
+  store <64 x i1> %c, ptr %p
+  ret void
+}
+
+define void @bitmask_v32i8_store(<32 x i8> %v, ptr %p) {
+; CHECK-LABEL: bitmask_v32i8_store:
+; CHECK:       ; %bb.0:
+; CHECK-NEXT:    adrp x8, lCPI35_0@PAGE
+; CHECK-NEXT:    cmeq.16b v1, v1, #0
+; CHECK-NEXT:    cmeq.16b v0, v0, #0
+; CHECK-NEXT:    ldr q2, [x8, lCPI35_0@PAGEOFF]
+; CHECK-NEXT:    bic.16b v1, v2, v1
+; CHECK-NEXT:    bic.16b v0, v2, v0
+; CHECK-NEXT:    addp.16b v0, v0, v1
+; CHECK-NEXT:    addp.16b v0, v0, v0
+; CHECK-NEXT:    addp.16b v0, v0, v0
+; CHECK-NEXT:    str s0, [x0]
+; CHECK-NEXT:    ret
+;
+; CHECK-LE-LABEL: bitmask_v32i8_store:
+; CHECK-LE:       // %bb.0:
+; CHECK-LE-NEXT:    adrp x8, .LCPI35_0
+; CHECK-LE-NEXT:    cmeq v1.16b, v1.16b, #0
+; CHECK-LE-NEXT:    cmeq v0.16b, v0.16b, #0
+; CHECK-LE-NEXT:    ldr q2, [x8, :lo12:.LCPI35_0]
+; CHECK-LE-NEXT:    bic v1.16b, v2.16b, v1.16b
+; CHECK-LE-NEXT:    bic v0.16b, v2.16b, v0.16b
+; CHECK-LE-NEXT:    addp v0.16b, v0.16b, v1.16b
+; CHECK-LE-NEXT:    addp v0.16b, v0.16b, v0.16b
+; CHECK-LE-NEXT:    addp v0.16b, v0.16b, v0.16b
+; CHECK-LE-NEXT:    str s0, [x0]
+; CHECK-LE-NEXT:    ret
+;
+; CHECK-BE-LABEL: bitmask_v32i8_store:
+; CHECK-BE:       // %bb.0:
+; CHECK-BE-NEXT:    rev64 v1.16b, v1.16b
+; CHECK-BE-NEXT:    rev64 v0.16b, v0.16b
+; CHECK-BE-NEXT:    adrp x8, .LCPI35_0
+; CHECK-BE-NEXT:    add x8, x8, :lo12:.LCPI35_0
+; CHECK-BE-NEXT:    ld1 { v2.16b }, [x8]
+; CHECK-BE-NEXT:    ext v1.16b, v1.16b, v1.16b, #8
+; CHECK-BE-NEXT:    ext v0.16b, v0.16b, v0.16b, #8
+; CHECK-BE-NEXT:    cmeq v1.16b, v1.16b, #0
+; CHECK-BE-NEXT:    cmeq v0.16b, v0.16b, #0
+; CHECK-BE-NEXT:    bic v1.16b, v2.16b, v1.16b
+; CHECK-BE-NEXT:    bic v0.16b, v2.16b, v0.16b
+; CHECK-BE-NEXT:    addp v1.16b, v1.16b, v1.16b
+; CHECK-BE-NEXT:    addp v0.16b, v0.16b, v0.16b
+; CHECK-BE-NEXT:    addp v1.16b, v1.16b, v1.16b
+; CHECK-BE-NEXT:    addp v0.16b, v0.16b, v0.16b
+; CHECK-BE-NEXT:    addp v1.16b, v1.16b, v1.16b
+; CHECK-BE-NEXT:    addp v0.16b, v0.16b, v0.16b
+; CHECK-BE-NEXT:    rev16 v1.16b, v1.16b
+; CHECK-BE-NEXT:    rev16 v0.16b, v0.16b
+; CHECK-BE-NEXT:    str h1, [x0, #2]
+; CHECK-BE-NEXT:    str h0, [x0]
+; CHECK-BE-NEXT:    ret
+  %c = icmp ne <32 x i8> %v, zeroinitializer
+  store <32 x i1> %c, ptr %p
+  ret void
 }

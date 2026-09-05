@@ -28,7 +28,7 @@ c=$(grep -c 'call.*classify' x86.s);               r "5 classify calls remaining
 c=$(grep -c 'bl.*classify' arm.s);                 r "5 classify calls remaining aarch64" "$c $(bad $c 0)"
 c=$(fn f6_eq x86.s | grep -c 'jne');               r "6 derive(PartialEq) 4xu8 x86 branches" "$c $(bad $c 0)"
 c=$(fn f6_eq arm.s | grep -c 'csel');              r "6 derive(PartialEq) 4xu8 aarch64 csel" "$c $(bad $c 0)"
-c=$(fn f7_abs x86.s | grep -cE '^\tj');            r "7 checked_abs x86 jumps" "$c $(bad $c 0)"
+c=$(fn f7_abs x86.s | grep -c $'^\tj');            r "7 checked_abs x86 jumps" "$c $(bad $c 0)"
 c=$(fn f8_is_op x86.s | grep -c 'jmpq');           r "8 is_op x86 jump table" "$c $(bad $c 0)"
 c=$(fn f9_cmp x86.s | grep -c 'cmpl');             r "9 derived Ord x86 cmpl count (3 fields)" "$c $(bad $c 3)"
 if [ -s x86s.s ]; then

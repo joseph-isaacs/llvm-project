@@ -20,5 +20,5 @@ Everything here was authored by Claude in an interactive session. Both rust-lang
 LLM involvement; do not paste this text into upstream issues or PRs without rewriting and disclosing.
 
 Update 2026-09-05: everything above was re-run on the same nightly; see `results/run-2026-09-05.md` for
-the correctness verdict (no miscompile found), a correction to finding 7 (needs
-`-disable-select-optimize=false`), the second-hunt results and one new AArch64 finding.
+the correctness verdict (no miscompile found), a correction to finding 7 (it is CodeGenPrepare's
+select-to-branch, and `check.sh` had a tab bug that hid it), the second-hunt results and one new AArch64 finding.

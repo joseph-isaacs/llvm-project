@@ -21,7 +21,7 @@ counts() { # asm file -> "fn count" lines (count = instructions between label an
   awk '/^[A-Za-z_][A-Za-z_0-9]*:$/{ if (name!="") print name, n; name=substr($0,1,length($0)-1); n=0; next }
        /^\t[a-z]/{ n++ } END{ if (name!="") print name, n }' "$1" | sort
 }
-for f in h_loops h_scalar; do
+for f in ${FILES:-h_loops h_scalar}; do
   for tc in "$@"; do
     build "$tc" "$f" v3   -C target-cpu=x86-64-v3
     build "$tc" "$f" sse2

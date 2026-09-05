@@ -104,5 +104,5 @@ pub struct Inc; impl Op for Inc { fn run(&self, x: u32) -> u32 { x + 1 } }
 #[no_mangle] pub fn dyn_loop(o: &dyn Op, a: &mut [u32]) { for x in a { *x = o.run(*x); } }        // vtable load hoisted?
 #[no_mangle] pub fn closure_apply(a: &mut [u32], k: u32) { let f = |x: u32| x.wrapping_mul(k); for x in a { *x = f(*x); } }
 #[no_mangle] pub fn fnptr_call(f: fn(u32) -> u32, x: u32) -> u32 { f(x) + f(x) }                  // two calls (no attributes)
-#[no_mangle] pub fn generic_sum<I: Iterator<Item = u32>>(it: I) -> u32 { it.sum() }
+pub fn generic_sum<I: Iterator<Item = u32>>(it: I) -> u32 { it.sum() }
 #[no_mangle] pub fn boxed_slice_sum(b: &Box<[u32]>) -> u32 { b.iter().sum() }

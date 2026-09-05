@@ -49,7 +49,7 @@
 #[no_mangle] pub fn nested_const(a: &mut [u8; 64]) { for i in 0..8 { for j in 0..8 { a[i * 8 + j] = (i ^ j) as u8; } } } // full unroll + store merge
 
 // --- LICM / GVN / DSE ---
-pub struct Acc { sum: u64, count: u32, max: u32 }
+pub struct Acc { pub sum: u64, pub count: u32, pub max: u32 }
 #[no_mangle] pub fn acc_loop(acc: &mut Acc, a: &[u32]) { for &x in a { acc.sum += x as u64; acc.count += 1; acc.max = acc.max.max(x); } } // fields should stay in registers
 #[no_mangle] pub fn acc_loop_opt(acc: &mut Option<Acc>, a: &[u32]) { for &x in a { if let Some(acc) = acc { acc.sum += x as u64; } } } // hoist the discriminant test
 #[no_mangle] pub fn vec_push_loop(v: &mut Vec<u8>, n: usize) { for i in 0..n { v.push(i as u8); } }   // grow check per iteration (known?)

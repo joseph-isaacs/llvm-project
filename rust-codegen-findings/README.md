@@ -18,3 +18,7 @@ library rewrite that avoids 1; rust-lang/portable-simd for 3; 6 is arguable (rus
 
 Everything here was authored by Claude in an interactive session. Both rust-lang and LLVM require disclosure of
 LLM involvement; do not paste this text into upstream issues or PRs without rewriting and disclosing.
+
+Update 2026-09-05: everything above was re-run on the same nightly; see `results/run-2026-09-05.md` for
+the correctness verdict (no miscompile found), a correction to finding 7 (needs
+`-disable-select-optimize=false`), the second-hunt results and one new AArch64 finding.

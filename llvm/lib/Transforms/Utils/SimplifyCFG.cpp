@@ -8167,6 +8167,171 @@ static bool simplifySwitchOfPowersOfTwo(SwitchInst *SI, IRBuilder<> &Builder,
   return true;
 }
 
+/// Lower a switch over ucmp/scmp to comparisons of the intrinsic's operands.
+static bool lowerSwitchOfCmpIntrinsic(SwitchInst *SI, IRBuilderBase &Builder,
+                                      DomTreeUpdater *DTU) {
+  auto *Cmp = dyn_cast<CmpIntrinsic>(SI->getCondition());
+  if (!Cmp || !Cmp->hasOneUse())
+    return false;
+
+  // Record each destination's comparison outcomes and aggregate edge weight.
+  // A mask lets one predicate describe merged outcomes, e.g. Less | Equal.
+  enum : unsigned { Less = 1, Equal = 2, Greater = 4, All = 7 };
+  struct Arm {
+    BasicBlock *Dest;
+    unsigned Mask;
+    uint64_t Weight;
+  };
+  SmallVector<Arm, 3> Arms;
+  SmallVector<uint32_t, 4> Weights;
+  bool HasWeights =
+      extractBranchWeights(getValidBranchWeightMDNode(*SI), Weights);
+  bool IsExpected = HasWeights && hasBranchWeightOrigin(*SI);
+  auto AddArm = [&](BasicBlock *Dest, unsigned Mask, unsigned Index) {
+    uint64_t Weight = HasWeights ? Weights[Index] : 0;
+    for (Arm &A : Arms) {
+      if (A.Dest == Dest) {
+        A.Mask |= Mask;
+        A.Weight += Weight;
+        return;
+      }
+    }
+    Arms.push_back({Dest, Mask, Weight});
+  };
+
+  // Tracks which values are not checks by the switch arms
+  unsigned MissingCmp = All;
+  for (auto &Case : SI->cases()) {
+    std::optional<int64_t> Val = Case.getCaseValue()->getValue().trySExtValue();
+    if (!Val || *Val < -1 || *Val > 1)
+      return false;
+    unsigned Mask = *Val == -1 ? Less : *Val == 0 ? Equal : Greater;
+    MissingCmp &= ~Mask; // Track the default case.
+    AddArm(Case.getCaseSuccessor(), Mask, Case.getSuccessorIndex());
+  }
+
+  // Do not lower switches whose missing results lead to an unreachable default.
+  if (MissingCmp) {
+    if (!SI->defaultDestUnreachable()) {
+      AddArm(SI->getDefaultDest(), MissingCmp, 0);
+    } else {
+      // Unreachable is reachable, bail out.
+      return false;
+    }
+  }
+
+  if (Arms.empty())
+    return false;
+
+  // Test hotter merged destinations first. Without weights (or on ties),
+  // retain first-occurrence case order, with the default considered last.
+  if (HasWeights)
+    stable_sort(Arms,
+                [](const Arm &A, const Arm &B) { return A.Weight > B.Weight; });
+
+  // Translate each non-final arm's set of results into one comparison of the
+  // original operands. Signedness affects ordering, but not equality.
+  auto GetPredicate = [&](unsigned Mask) {
+    ICmpInst::Predicate Pred;
+    switch (Mask) {
+    case Less:
+      Pred = ICmpInst::ICMP_ULT;
+      break;
+    case Equal:
+      Pred = ICmpInst::ICMP_EQ;
+      break;
+    case Greater:
+      Pred = ICmpInst::ICMP_UGT;
+      break;
+    case Less | Equal:
+      Pred = ICmpInst::ICMP_ULE;
+      break;
+    case Less | Greater:
+      Pred = ICmpInst::ICMP_NE;
+      break;
+    case Equal | Greater:
+      Pred = ICmpInst::ICMP_UGE;
+      break;
+    default:
+      llvm_unreachable("Unexpected comparison outcome mask");
+    }
+    return Cmp->isSigned() ? ICmpInst::getSignedPredicate(Pred) : Pred;
+  };
+
+  BasicBlock *SwitchBB = SI->getParent();
+  SmallMapVector<BasicBlock *, unsigned, 4> SwitchSucc;
+  for (BasicBlock *Dest : successors(SI))
+    ++SwitchSucc[Dest];
+  SmallVector<DominatorTree::UpdateType, 6> Updates;
+  MDNode *Unpredictable = SI->getMetadata(LLVMContext::MD_unpredictable);
+
+  // Each check tests one arm against the remaining outcomes. Fit 64-bit weight
+  // sums back into metadata operands without overflowing merged case weights.
+  auto CreateCheck = [&](const Arm &A, BasicBlock *FalseDest,
+                         uint64_t FalseWeight) {
+    Value *Cond =
+        Builder.CreateICmp(GetPredicate(A.Mask), Cmp->getLHS(), Cmp->getRHS());
+    auto *Br =
+        Builder.CreateCondBr(Cond, A.Dest, FalseDest, nullptr, Unpredictable);
+    if (HasWeights)
+      setFittedBranchWeights(*Br, {A.Weight, FalseWeight}, IsExpected);
+  };
+
+  // One or two destinations keep all surviving edges attached to BB.
+  // Three destinations need one new block for the second check; the last
+  // outcome is selected by elimination and needs no comparison of its own.
+  BasicBlock *Next = nullptr;
+  Builder.SetInsertPoint(SI);
+  if (Arms.size() == 1) {
+    Builder.CreateBr(Arms[0].Dest);
+  } else if (Arms.size() == 2) {
+    CreateCheck(Arms[0], Arms[1].Dest, Arms[1].Weight);
+  } else {
+    assert(Arms.size() == 3 && "Only three comparison outcomes are possible");
+    Next = BasicBlock::Create(SwitchBB->getContext(), "cmp.next", SwitchBB->getParent(),
+                              SwitchBB->getNextNode());
+    CreateCheck(Arms[0], Next, Arms[1].Weight + Arms[2].Weight);
+    Builder.SetInsertPoint(Next);
+    Builder.SetCurrentDebugLocation(SI->getDebugLoc());
+    CreateCheck(Arms[1], Arms[2].Dest, Arms[2].Weight);
+    Updates.push_back({DominatorTree::Insert, SwitchBB, Next});
+  }
+
+  // Retain one existing PHI entry per surviving destination, removing only
+  // duplicate or discarded edges (including an unused default).
+  // Count all original edges, since the default may share a live target.
+  for (const auto &Entry : SwitchSucc) {
+    BasicBlock *Dest = Entry.first;
+    unsigned Count = Entry.second;
+    bool Keep = any_of(Arms, [Dest](const Arm &A) { return A.Dest == Dest; });
+    for (unsigned I = Keep ? 1 : 0; I < Count; ++I)
+      Dest->removePredecessor(SwitchBB);
+
+    if (!Keep)
+      Updates.push_back({DominatorTree::Delete, SwitchBB, Dest});
+  }
+
+  // The first arm keeps its edge from SwitchBB. Only the second and third
+  // arms move to Next, retaining their existing PHI incoming values.
+  if (Next) {
+    for (unsigned I = 1; I < 3; ++I) {
+      BasicBlock *Dest = Arms[I].Dest;
+      for (PHINode &PN : Dest->phis()) {
+        int Index = PN.getBasicBlockIndex(SwitchBB);
+        assert(Index >= 0 && "Missing switch predecessor");
+        PN.setIncomingBlock(Index, Next);
+      }
+      Updates.push_back({DominatorTree::Delete, SwitchBB, Dest});
+      Updates.push_back({DominatorTree::Insert, Next, Dest});
+    }
+  }
+  SI->eraseFromParent();
+  Cmp->eraseFromParent();
+  if (DTU)
+    DTU->applyUpdates(Updates);
+  return true;
+}
+
 /// Fold switch over ucmp/scmp intrinsic to br if two of the switch arms have
 /// the same destination.
 static bool simplifySwitchOfCmpIntrinsic(SwitchInst *SI, IRBuilderBase &Builder,
@@ -8548,6 +8713,9 @@ bool SimplifyCFGOpt::simplifySwitch(SwitchInst *SI, IRBuilder<> &Builder) {
 
   // Remove unreachable cases.
   if (eliminateDeadSwitchCases(SI, DTU, Options.AC, DL))
+    return requestResimplify();
+
+  if (lowerSwitchOfCmpIntrinsic(SI, Builder, DTU))
     return requestResimplify();
 
   if (simplifySwitchOfCmpIntrinsic(SI, Builder, DTU))

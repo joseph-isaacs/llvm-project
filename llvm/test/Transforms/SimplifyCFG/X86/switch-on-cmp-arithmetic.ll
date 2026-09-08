@@ -47,21 +47,11 @@ end:
 define i32 @ucmp_arbitrary_selection(i32 %a, i32 %b) {
 ; ARITH-LABEL: define i32 @ucmp_arbitrary_selection(
 ; ARITH-SAME: i32 [[A:%.*]], i32 [[B:%.*]]) {
-; ARITH-NEXT:  [[ENTRY:.*]]:
-; ARITH-NEXT:    [[C:%.*]] = call i8 @llvm.ucmp.i8.i32(i32 [[A]], i32 [[B]])
-; ARITH-NEXT:    switch i8 [[C]], label %[[UNR:.*]] [
-; ARITH-NEXT:      i8 -1, label %[[END:.*]]
-; ARITH-NEXT:      i8 0, label %[[EQ:.*]]
-; ARITH-NEXT:      i8 1, label %[[GT:.*]]
-; ARITH-NEXT:    ]
-; ARITH:       [[UNR]]:
-; ARITH-NEXT:    unreachable
-; ARITH:       [[EQ]]:
-; ARITH-NEXT:    br label %[[END]]
-; ARITH:       [[GT]]:
-; ARITH-NEXT:    br label %[[END]]
-; ARITH:       [[END]]:
-; ARITH-NEXT:    [[R:%.*]] = phi i32 [ 9, %[[GT]] ], [ 17, %[[EQ]] ], [ 5, %[[ENTRY]] ]
+; ARITH-NEXT:  [[END:.*:]]
+; ARITH-NEXT:    [[TMP0:%.*]] = icmp ult i32 [[A]], [[B]]
+; ARITH-NEXT:    [[TMP1:%.*]] = icmp eq i32 [[A]], [[B]]
+; ARITH-NEXT:    [[SPEC_SELECT:%.*]] = select i1 [[TMP1]], i32 17, i32 9
+; ARITH-NEXT:    [[R:%.*]] = select i1 [[TMP0]], i32 5, i32 [[SPEC_SELECT]]
 ; ARITH-NEXT:    ret i32 [[R]]
 ;
 ; LOOKUP-LABEL: define i32 @ucmp_arbitrary_selection(
@@ -103,33 +93,14 @@ end:
 ; Once lookup tables are enabled but declined, the switch is lowered to
 ; compares of the operands.
 define i32 @ucmp_arbitrary_selection_no_jump_tables(i32 %a, i32 %b) "no-jump-tables"="true" {
-; ARITH-LABEL: define i32 @ucmp_arbitrary_selection_no_jump_tables(
-; ARITH-SAME: i32 [[A:%.*]], i32 [[B:%.*]]) #[[ATTR0:[0-9]+]] {
-; ARITH-NEXT:  [[ENTRY:.*]]:
-; ARITH-NEXT:    [[C:%.*]] = call i8 @llvm.ucmp.i8.i32(i32 [[A]], i32 [[B]])
-; ARITH-NEXT:    switch i8 [[C]], label %[[UNR:.*]] [
-; ARITH-NEXT:      i8 -1, label %[[END:.*]]
-; ARITH-NEXT:      i8 0, label %[[EQ:.*]]
-; ARITH-NEXT:      i8 1, label %[[GT:.*]]
-; ARITH-NEXT:    ]
-; ARITH:       [[UNR]]:
-; ARITH-NEXT:    unreachable
-; ARITH:       [[EQ]]:
-; ARITH-NEXT:    br label %[[END]]
-; ARITH:       [[GT]]:
-; ARITH-NEXT:    br label %[[END]]
-; ARITH:       [[END]]:
-; ARITH-NEXT:    [[R:%.*]] = phi i32 [ 9, %[[GT]] ], [ 17, %[[EQ]] ], [ 5, %[[ENTRY]] ]
-; ARITH-NEXT:    ret i32 [[R]]
-;
-; LOOKUP-LABEL: define i32 @ucmp_arbitrary_selection_no_jump_tables(
-; LOOKUP-SAME: i32 [[A:%.*]], i32 [[B:%.*]]) #[[ATTR0:[0-9]+]] {
-; LOOKUP-NEXT:  [[ENTRY:.*:]]
-; LOOKUP-NEXT:    [[TMP0:%.*]] = icmp ult i32 [[A]], [[B]]
-; LOOKUP-NEXT:    [[TMP1:%.*]] = icmp eq i32 [[A]], [[B]]
-; LOOKUP-NEXT:    [[SPEC_SELECT:%.*]] = select i1 [[TMP1]], i32 17, i32 9
-; LOOKUP-NEXT:    [[R:%.*]] = select i1 [[TMP0]], i32 5, i32 [[SPEC_SELECT]]
-; LOOKUP-NEXT:    ret i32 [[R]]
+; CHECK-LABEL: define i32 @ucmp_arbitrary_selection_no_jump_tables(
+; CHECK-SAME: i32 [[A:%.*]], i32 [[B:%.*]]) #[[ATTR0:[0-9]+]] {
+; CHECK-NEXT:  [[ENTRY:.*:]]
+; CHECK-NEXT:    [[TMP0:%.*]] = icmp ult i32 [[A]], [[B]]
+; CHECK-NEXT:    [[TMP1:%.*]] = icmp eq i32 [[A]], [[B]]
+; CHECK-NEXT:    [[SPEC_SELECT:%.*]] = select i1 [[TMP1]], i32 17, i32 9
+; CHECK-NEXT:    [[R:%.*]] = select i1 [[TMP0]], i32 5, i32 [[SPEC_SELECT]]
+; CHECK-NEXT:    ret i32 [[R]]
 ;
 entry:
   %c = call i8 @llvm.ucmp.i8.i32(i32 %a, i32 %b)

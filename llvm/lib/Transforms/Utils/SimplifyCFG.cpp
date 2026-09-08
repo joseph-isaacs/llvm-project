@@ -8167,37 +8167,14 @@ static bool simplifySwitchOfPowersOfTwo(SwitchInst *SI, IRBuilder<> &Builder,
   return true;
 }
 
-/// Return true if every arm of \p SI merely selects constants into PHIs of
-/// one common block. Such switches are candidates for arithmetic and lookup
-/// table replacement, which is preferable to a chain of compares and selects.
-static bool isConstantSelectionSwitch(SwitchInst *SI, const DataLayout &DL,
-                                      const TargetTransformInfo &TTI) {
-  BasicBlock *CommonDest = nullptr;
-  SmallVector<std::pair<PHINode *, Constant *>, 4> Res;
-  for (auto &Case : SI->cases()) {
-    Res.clear();
-    if (!getCaseResults(SI, Case.getCaseValue(), Case.getCaseSuccessor(),
-                        &CommonDest, Res, DL, TTI))
-      return false;
-  }
-  if (SI->defaultDestUnreachable())
-    return true;
-  Res.clear();
-  return getCaseResults(SI, nullptr, SI->getDefaultDest(), &CommonDest, Res, DL,
-                        TTI);
-}
-
 /// Lower a switch over ucmp/scmp to comparisons of the intrinsic's operands.
-/// Unless \p LowerConstantSelections is set, switches whose arms only select
-/// constants are left for the arithmetic and lookup table folds.
+/// A switch with three distinct destinations becomes a two-comparison chain,
+/// which is only worthwhile once the arithmetic and lookup table folds have
+/// had their chance, so it is lowered only when \p AllowThreeWay is set.
 static bool lowerSwitchOfCmpIntrinsic(SwitchInst *SI, IRBuilderBase &Builder,
-                                      DomTreeUpdater *DTU, const DataLayout &DL,
-                                      const TargetTransformInfo &TTI,
-                                      bool LowerConstantSelections) {
+                                      DomTreeUpdater *DTU, bool AllowThreeWay) {
   auto *Cmp = dyn_cast<CmpIntrinsic>(SI->getCondition());
   if (!Cmp || !Cmp->hasOneUse())
-    return false;
-  if (!LowerConstantSelections && isConstantSelectionSwitch(SI, DL, TTI))
     return false;
 
   // Record each destination's comparison outcomes and aggregate edge weight.
@@ -8247,6 +8224,12 @@ static bool lowerSwitchOfCmpIntrinsic(SwitchInst *SI, IRBuilderBase &Builder,
   }
 
   if (Arms.empty())
+    return false;
+
+  // Two destinations become a single comparison and are always worthwhile.
+  // Three destinations need a second block and take a linear map or lookup
+  // table away from later folds, so lower them only in the late instances.
+  if (Arms.size() >= 3 && !AllowThreeWay)
     return false;
 
   // Test hotter merged destinations first. Without weights (or on ties),
@@ -8628,11 +8611,10 @@ bool SimplifyCFGOpt::simplifySwitch(SwitchInst *SI, IRBuilder<> &Builder) {
   if (eliminateDeadSwitchCases(SI, DTU, Options.AC, DL))
     return requestResimplify();
 
-  // Lower a switch over ucmp/scmp to compares of its operands now, so later
-  // passes see plain compares. Switches that only select constants are left
-  // for the arithmetic and lookup table folds below.
-  if (lowerSwitchOfCmpIntrinsic(SI, Builder, DTU, DL, TTI,
-                                /*LowerConstantSelections=*/false))
+  // Lower a two-destination switch over ucmp/scmp to a compare of its operands
+  // now, so later passes see a plain compare. Three-destination switches are
+  // deferred to the late instances below.
+  if (lowerSwitchOfCmpIntrinsic(SI, Builder, DTU, /*AllowThreeWay=*/false))
     return requestResimplify();
 
   if (trySwitchToSelect(SI, Builder, DTU, DL, TTI))
@@ -8649,11 +8631,10 @@ bool SimplifyCFGOpt::simplifySwitch(SwitchInst *SI, IRBuilder<> &Builder) {
                              Options.ConvertSwitchToLookupTable))
       return requestResimplify();
 
-  // Lower the constant selections over ucmp/scmp that were deferred above once
-  // the arithmetic and lookup table folds have both had their chance.
-  if (Options.ConvertSwitchToLookupTable &&
-      lowerSwitchOfCmpIntrinsic(SI, Builder, DTU, DL, TTI,
-                                /*LowerConstantSelections=*/true))
+  // Lower a three-destination switch over ucmp/scmp once the arithmetic and
+  // lookup table folds have had their chance at a constant map.
+  if ((Options.ConvertSwitchToArithmetic || Options.ConvertSwitchToLookupTable) &&
+      lowerSwitchOfCmpIntrinsic(SI, Builder, DTU, /*AllowThreeWay=*/true))
     return requestResimplify();
 
   if (simplifySwitchOfPowersOfTwo(SI, Builder, DTU, DL, TTI))

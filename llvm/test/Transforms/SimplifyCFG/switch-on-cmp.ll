@@ -5,6 +5,7 @@
 
 define void @ucmp_gt1(i32 %a, i32 %b) {
 ;
+;
 ; CHECK-LABEL: define void @ucmp_gt1(
 ; CHECK-SAME: i32 [[A:%.*]], i32 [[B:%.*]]) {
 ; CHECK-NEXT:    [[TMP1:%.*]] = icmp ule i32 [[A]], [[B]]
@@ -30,6 +31,7 @@ bb2:
 }
 
 define void @ucmp_gt2(i32 %a, i32 %b) {
+;
 ;
 ; CHECK-LABEL: define void @ucmp_gt2(
 ; CHECK-SAME: i32 [[A:%.*]], i32 [[B:%.*]]) {
@@ -57,6 +59,7 @@ bb2:
 
 define void @ucmp_lt1(i32 %a, i32 %b) {
 ;
+;
 ; CHECK-LABEL: define void @ucmp_lt1(
 ; CHECK-SAME: i32 [[A:%.*]], i32 [[B:%.*]]) {
 ; CHECK-NEXT:    [[TMP1:%.*]] = icmp uge i32 [[A]], [[B]]
@@ -82,6 +85,7 @@ bb2:
 }
 
 define void @ucmp_lt2(i32 %a, i32 %b) {
+;
 ;
 ; CHECK-LABEL: define void @ucmp_lt2(
 ; CHECK-SAME: i32 [[A:%.*]], i32 [[B:%.*]]) {
@@ -109,6 +113,7 @@ bb2:
 
 define void @ucmp_eq1(i32 %a, i32 %b) {
 ;
+;
 ; CHECK-LABEL: define void @ucmp_eq1(
 ; CHECK-SAME: i32 [[A:%.*]], i32 [[B:%.*]]) {
 ; CHECK-NEXT:    [[TMP1:%.*]] = icmp ne i32 [[A]], [[B]]
@@ -134,6 +139,7 @@ bb2:
 }
 
 define void @ucmp_eq2(i32 %a, i32 %b) {
+;
 ;
 ; CHECK-LABEL: define void @ucmp_eq2(
 ; CHECK-SAME: i32 [[A:%.*]], i32 [[B:%.*]]) {
@@ -161,6 +167,7 @@ bb2:
 
 define void @scmp_gt1(i32 %a, i32 %b) {
 ;
+;
 ; CHECK-LABEL: define void @scmp_gt1(
 ; CHECK-SAME: i32 [[A:%.*]], i32 [[B:%.*]]) {
 ; CHECK-NEXT:    [[TMP1:%.*]] = icmp sle i32 [[A]], [[B]]
@@ -187,6 +194,7 @@ bb2:
 
 define void @scmp_gt2(i32 %a, i32 %b) {
 ;
+;
 ; CHECK-LABEL: define void @scmp_gt2(
 ; CHECK-SAME: i32 [[A:%.*]], i32 [[B:%.*]]) {
 ; CHECK-NEXT:    [[TMP1:%.*]] = icmp sle i32 [[A]], [[B]]
@@ -212,6 +220,7 @@ bb2:
 }
 
 define void @ucmp_gt_multiuse(i32 %a, i32 %b) {
+;
 ;
 ; CHECK-LABEL: define void @ucmp_gt_multiuse(
 ; CHECK-SAME: i32 [[A:%.*]], i32 [[B:%.*]]) {
@@ -244,6 +253,7 @@ bb2:
 
 define i32 @ucmp_gt_phi(i32 %a, i32 %b) {
 ;
+;
 ; CHECK-LABEL: define i32 @ucmp_gt_phi(
 ; CHECK-SAME: i32 [[A:%.*]], i32 [[B:%.*]]) {
 ; CHECK-NEXT:  [[ENTRY:.*]]:
@@ -274,6 +284,7 @@ bb2:
 
 define void @ucmp_gt_extra_case(i32 %a, i32 %b) {
 ;
+;
 ; CHECK-LABEL: define void @ucmp_gt_extra_case(
 ; CHECK-SAME: i32 [[A:%.*]], i32 [[B:%.*]]) {
 ; CHECK-NEXT:  [[BB2:.*:]]
@@ -295,6 +306,7 @@ bb2:
 }
 
 define void @ucmp_gt_wrong_case(i32 %a, i32 %b) {
+;
 ;
 ; CHECK-LABEL: define void @ucmp_gt_wrong_case(
 ; CHECK-SAME: i32 [[A:%.*]], i32 [[B:%.*]]) {
@@ -325,15 +337,32 @@ bb2:
 
 define void @ucmp_gt_not_same_succ(i32 %a, i32 %b) {
 ;
-; CHECK-LABEL: define void @ucmp_gt_not_same_succ(
-; CHECK-SAME: i32 [[A:%.*]], i32 [[B:%.*]]) {
-; CHECK-NEXT:    [[TMP1:%.*]] = icmp ult i32 [[A]], [[B]]
-; CHECK-NEXT:    br i1 [[TMP1]], label %[[BB2:.*]], label %[[CMP_NEXT:.*]]
-; CHECK:       [[CMP_NEXT]]:
-; CHECK-NEXT:    call void @foo()
-; CHECK-NEXT:    br label %[[BB2]]
-; CHECK:       [[BB2]]:
-; CHECK-NEXT:    ret void
+;
+; EARLY-LABEL: define void @ucmp_gt_not_same_succ(
+; EARLY-SAME: i32 [[A:%.*]], i32 [[B:%.*]]) {
+; EARLY-NEXT:    [[RES:%.*]] = call i8 @llvm.ucmp.i8.i32(i32 [[A]], i32 [[B]])
+; EARLY-NEXT:    switch i8 [[RES]], label %[[BB1:.*]] [
+; EARLY-NEXT:      i8 -1, label %[[BB2:.*]]
+; EARLY-NEXT:      i8 0, label %[[BB3:.*]]
+; EARLY-NEXT:    ]
+; EARLY:       [[BB1]]:
+; EARLY-NEXT:    call void @foo()
+; EARLY-NEXT:    br label %[[BB2]]
+; EARLY:       [[BB3]]:
+; EARLY-NEXT:    call void @foo()
+; EARLY-NEXT:    br label %[[BB2]]
+; EARLY:       [[BB2]]:
+; EARLY-NEXT:    ret void
+;
+; LATE-LABEL: define void @ucmp_gt_not_same_succ(
+; LATE-SAME: i32 [[A:%.*]], i32 [[B:%.*]]) {
+; LATE-NEXT:    [[TMP1:%.*]] = icmp ult i32 [[A]], [[B]]
+; LATE-NEXT:    br i1 [[TMP1]], label %[[BB2:.*]], label %[[CMP_NEXT:.*]]
+; LATE:       [[CMP_NEXT]]:
+; LATE-NEXT:    call void @foo()
+; LATE-NEXT:    br label %[[BB2]]
+; LATE:       [[BB2]]:
+; LATE-NEXT:    ret void
 ;
   %res = call i8 @llvm.ucmp.i8.i32(i32 %a, i32 %b)
   switch i8 %res, label %bb1 [
@@ -354,6 +383,7 @@ bb2:
 }
 
 define void @ucmp_gt_unpredictable(i32 %a, i32 %b) {
+;
 ;
 ; CHECK-LABEL: define void @ucmp_gt_unpredictable(
 ; CHECK-SAME: i32 [[A:%.*]], i32 [[B:%.*]]) {
@@ -381,6 +411,7 @@ bb2:
 
 define void @ucmp_gt_weights(i32 %a, i32 %b) {
 ;
+;
 ; CHECK-LABEL: define void @ucmp_gt_weights(
 ; CHECK-SAME: i32 [[A:%.*]], i32 [[B:%.*]]) {
 ; CHECK-NEXT:    [[TMP1:%.*]] = icmp ule i32 [[A]], [[B]]
@@ -406,6 +437,7 @@ bb2:
 }
 
 define void @ucmp_gt_unreachable(i32 %a, i32 %b) {
+;
 ;
 ; CHECK-LABEL: define void @ucmp_gt_unreachable(
 ; CHECK-SAME: i32 [[A:%.*]], i32 [[B:%.*]]) {
@@ -437,6 +469,7 @@ unreachable:
 
 define void @ucmp_lt_unreachable(i32 %a, i32 %b) {
 ;
+;
 ; CHECK-LABEL: define void @ucmp_lt_unreachable(
 ; CHECK-SAME: i32 [[A:%.*]], i32 [[B:%.*]]) {
 ; CHECK-NEXT:    [[TMP1:%.*]] = icmp ult i32 [[A]], [[B]]
@@ -467,6 +500,7 @@ unreachable:
 
 define void @ucmp_eq_unreachable(i32 %a, i32 %b) {
 ;
+;
 ; CHECK-LABEL: define void @ucmp_eq_unreachable(
 ; CHECK-SAME: i32 [[A:%.*]], i32 [[B:%.*]]) {
 ; CHECK-NEXT:    [[TMP1:%.*]] = icmp ne i32 [[A]], [[B]]
@@ -496,6 +530,7 @@ unreachable:
 }
 
 define void @ucmp_gt_unreachable_multi_edge(i8 %x, i32 %a, i32 %b) {
+;
 ;
 ; CHECK-LABEL: define void @ucmp_gt_unreachable_multi_edge(
 ; CHECK-SAME: i8 [[X:%.*]], i32 [[A:%.*]], i32 [[B:%.*]]) {
@@ -543,6 +578,7 @@ unreachable:
 
 define void @ucmp_gt_unreachable_wrong_case(i32 %a, i32 %b) {
 ;
+;
 ; CHECK-LABEL: define void @ucmp_gt_unreachable_wrong_case(
 ; CHECK-SAME: i32 [[A:%.*]], i32 [[B:%.*]]) {
 ; CHECK-NEXT:    [[RES:%.*]] = call i8 @llvm.ucmp.i8.i32(i32 [[A]], i32 [[B]])
@@ -579,21 +615,41 @@ unreachable:
 
 define void @ucmp_gt_unreachable_no_two_equal_cases(i32 %a, i32 %b) {
 ;
-; CHECK-LABEL: define void @ucmp_gt_unreachable_no_two_equal_cases(
-; CHECK-SAME: i32 [[A:%.*]], i32 [[B:%.*]]) {
-; CHECK-NEXT:    [[TMP1:%.*]] = icmp ult i32 [[A]], [[B]]
-; CHECK-NEXT:    br i1 [[TMP1]], label %[[BB3:.*]], label %[[CMP_NEXT:.*]]
-; CHECK:       [[CMP_NEXT]]:
-; CHECK-NEXT:    [[TMP2:%.*]] = icmp eq i32 [[A]], [[B]]
-; CHECK-NEXT:    br i1 [[TMP2]], label %[[BB2:.*]], label %[[BB1:.*]]
-; CHECK:       [[BB1]]:
-; CHECK-NEXT:    call void @foo()
-; CHECK-NEXT:    br label %[[BB2]]
-; CHECK:       [[BB3]]:
-; CHECK-NEXT:    call void @foo()
-; CHECK-NEXT:    br label %[[BB2]]
-; CHECK:       [[BB2]]:
-; CHECK-NEXT:    ret void
+;
+; EARLY-LABEL: define void @ucmp_gt_unreachable_no_two_equal_cases(
+; EARLY-SAME: i32 [[A:%.*]], i32 [[B:%.*]]) {
+; EARLY-NEXT:    [[RES:%.*]] = call i8 @llvm.ucmp.i8.i32(i32 [[A]], i32 [[B]])
+; EARLY-NEXT:    switch i8 [[RES]], label %[[UNREACHABLE:.*]] [
+; EARLY-NEXT:      i8 -1, label %[[BB3:.*]]
+; EARLY-NEXT:      i8 0, label %[[BB2:.*]]
+; EARLY-NEXT:      i8 1, label %[[BB1:.*]]
+; EARLY-NEXT:    ]
+; EARLY:       [[BB1]]:
+; EARLY-NEXT:    call void @foo()
+; EARLY-NEXT:    br label %[[BB2]]
+; EARLY:       [[BB3]]:
+; EARLY-NEXT:    call void @foo()
+; EARLY-NEXT:    br label %[[BB2]]
+; EARLY:       [[BB2]]:
+; EARLY-NEXT:    ret void
+; EARLY:       [[UNREACHABLE]]:
+; EARLY-NEXT:    unreachable
+;
+; LATE-LABEL: define void @ucmp_gt_unreachable_no_two_equal_cases(
+; LATE-SAME: i32 [[A:%.*]], i32 [[B:%.*]]) {
+; LATE-NEXT:    [[TMP1:%.*]] = icmp ult i32 [[A]], [[B]]
+; LATE-NEXT:    br i1 [[TMP1]], label %[[BB3:.*]], label %[[CMP_NEXT:.*]]
+; LATE:       [[CMP_NEXT]]:
+; LATE-NEXT:    [[TMP2:%.*]] = icmp eq i32 [[A]], [[B]]
+; LATE-NEXT:    br i1 [[TMP2]], label %[[BB2:.*]], label %[[BB1:.*]]
+; LATE:       [[BB1]]:
+; LATE-NEXT:    call void @foo()
+; LATE-NEXT:    br label %[[BB2]]
+; LATE:       [[BB3]]:
+; LATE-NEXT:    call void @foo()
+; LATE-NEXT:    br label %[[BB2]]
+; LATE:       [[BB2]]:
+; LATE-NEXT:    ret void
 ;
   %res = call i8 @llvm.ucmp.i8.i32(i32 %a, i32 %b)
   switch i8 %res, label %unreachable [
@@ -619,6 +675,7 @@ unreachable:
 
 define void @ucmp_gt_unreachable_three_equal_cases(i32 %a, i32 %b) {
 ;
+;
 ; CHECK-LABEL: define void @ucmp_gt_unreachable_three_equal_cases(
 ; CHECK-SAME: i32 [[A:%.*]], i32 [[B:%.*]]) {
 ; CHECK-NEXT:  [[BB1:.*:]]
@@ -641,6 +698,7 @@ unreachable:
 }
 
 define void @ucmp_gt_unreachable_default_not_unreachable(i32 %a, i32 %b) {
+;
 ;
 ; CHECK-LABEL: define void @ucmp_gt_unreachable_default_not_unreachable(
 ; CHECK-SAME: i32 [[A:%.*]], i32 [[B:%.*]]) {
@@ -673,6 +731,7 @@ not.unreachable:
 
 define void @ucmp_gt_unreachable_weights(i32 %a, i32 %b) {
 ;
+;
 ; CHECK-LABEL: define void @ucmp_gt_unreachable_weights(
 ; CHECK-SAME: i32 [[A:%.*]], i32 [[B:%.*]]) {
 ; CHECK-NEXT:    [[TMP1:%.*]] = icmp ule i32 [[A]], [[B]]
@@ -704,15 +763,36 @@ unreachable:
 ; Three distinct destinations, including a direct edge to the result PHI.
 ; The branch chain should expose the comparisons to subsequent select folding.
 define i64 @ucmp_three_destinations_phi_select(i8 %x, i8 %y) {
-; CHECK-LABEL: define i64 @ucmp_three_destinations_phi_select(
-; CHECK-SAME: i8 [[X:%.*]], i8 [[Y:%.*]]) {
-; CHECK-NEXT:  [[START:.*:]]
-; CHECK-NEXT:    [[TMP0:%.*]] = icmp ult i8 [[X]], [[Y]]
-; CHECK-NEXT:    [[Z:%.*]] = zext i8 [[X]] to i64
-; CHECK-NEXT:    [[TMP1:%.*]] = icmp eq i8 [[X]], [[Y]]
-; CHECK-NEXT:    [[SPEC_SELECT:%.*]] = select i1 [[TMP1]], i64 4, i64 2
-; CHECK-NEXT:    [[R:%.*]] = select i1 [[TMP0]], i64 [[Z]], i64 [[SPEC_SELECT]]
-; CHECK-NEXT:    ret i64 [[R]]
+;
+; EARLY-LABEL: define i64 @ucmp_three_destinations_phi_select(
+; EARLY-SAME: i8 [[X:%.*]], i8 [[Y:%.*]]) {
+; EARLY-NEXT:  [[START:.*]]:
+; EARLY-NEXT:    [[C:%.*]] = call i8 @llvm.ucmp.i8.i8(i8 [[X]], i8 [[Y]])
+; EARLY-NEXT:    switch i8 [[C]], label %[[UNR:.*]] [
+; EARLY-NEXT:      i8 -1, label %[[LT:.*]]
+; EARLY-NEXT:      i8 0, label %[[END:.*]]
+; EARLY-NEXT:      i8 1, label %[[GT:.*]]
+; EARLY-NEXT:    ]
+; EARLY:       [[UNR]]:
+; EARLY-NEXT:    unreachable
+; EARLY:       [[LT]]:
+; EARLY-NEXT:    [[Z:%.*]] = zext i8 [[X]] to i64
+; EARLY-NEXT:    br label %[[END]]
+; EARLY:       [[GT]]:
+; EARLY-NEXT:    br label %[[END]]
+; EARLY:       [[END]]:
+; EARLY-NEXT:    [[R:%.*]] = phi i64 [ [[Z]], %[[LT]] ], [ 2, %[[GT]] ], [ 4, %[[START]] ]
+; EARLY-NEXT:    ret i64 [[R]]
+;
+; LATE-LABEL: define i64 @ucmp_three_destinations_phi_select(
+; LATE-SAME: i8 [[X:%.*]], i8 [[Y:%.*]]) {
+; LATE-NEXT:  [[START:.*:]]
+; LATE-NEXT:    [[TMP0:%.*]] = icmp ult i8 [[X]], [[Y]]
+; LATE-NEXT:    [[Z:%.*]] = zext i8 [[X]] to i64
+; LATE-NEXT:    [[TMP1:%.*]] = icmp eq i8 [[X]], [[Y]]
+; LATE-NEXT:    [[SPEC_SELECT:%.*]] = select i1 [[TMP1]], i64 4, i64 2
+; LATE-NEXT:    [[R:%.*]] = select i1 [[TMP0]], i64 [[Z]], i64 [[SPEC_SELECT]]
+; LATE-NEXT:    ret i64 [[R]]
 ;
 start:
   %c = call i8 @llvm.ucmp.i8.i8(i8 %x, i8 %y)
@@ -740,6 +820,8 @@ end:
 ; Arms that only select constants into one PHI are left alone until the
 ; arithmetic and lookup table folds have run, then lowered if they declined.
 define i32 @ucmp_constant_selection_deferred(i32 %a, i32 %b) {
+;
+;
 ; EARLY-LABEL: define i32 @ucmp_constant_selection_deferred(
 ; EARLY-SAME: i32 [[A:%.*]], i32 [[B:%.*]]) {
 ; EARLY-NEXT:  [[ENTRY:.*]]:
@@ -796,6 +878,7 @@ end:
 ; A reachable default that also selects a constant is deferred too; the
 ; switch to select fold then takes it.
 define i32 @scmp_constant_selection_default(i32 %a, i32 %b) {
+;
 ; CHECK-LABEL: define i32 @scmp_constant_selection_default(
 ; CHECK-SAME: i32 [[A:%.*]], i32 [[B:%.*]]) {
 ; CHECK-NEXT:  [[ENTRY:.*:]]
@@ -826,20 +909,38 @@ end:
 
 ; A default with side effects is real control flow and is lowered right away.
 define i32 @scmp_constant_cases_side_effect_default(i32 %a, i32 %b) {
-; CHECK-LABEL: define i32 @scmp_constant_cases_side_effect_default(
-; CHECK-SAME: i32 [[A:%.*]], i32 [[B:%.*]]) {
-; CHECK-NEXT:  [[ENTRY:.*]]:
-; CHECK-NEXT:    [[TMP0:%.*]] = icmp slt i32 [[A]], [[B]]
-; CHECK-NEXT:    br i1 [[TMP0]], label %[[END:.*]], label %[[CMP_NEXT:.*]]
-; CHECK:       [[CMP_NEXT]]:
-; CHECK-NEXT:    [[TMP1:%.*]] = icmp sgt i32 [[A]], [[B]]
-; CHECK-NEXT:    br i1 [[TMP1]], label %[[END]], label %[[DEF:.*]]
-; CHECK:       [[DEF]]:
-; CHECK-NEXT:    call void @foo()
-; CHECK-NEXT:    br label %[[END]]
-; CHECK:       [[END]]:
-; CHECK-NEXT:    [[R:%.*]] = phi i32 [ 17, %[[DEF]] ], [ 5, %[[ENTRY]] ], [ 9, %[[CMP_NEXT]] ]
-; CHECK-NEXT:    ret i32 [[R]]
+;
+; EARLY-LABEL: define i32 @scmp_constant_cases_side_effect_default(
+; EARLY-SAME: i32 [[A:%.*]], i32 [[B:%.*]]) {
+; EARLY-NEXT:  [[ENTRY:.*]]:
+; EARLY-NEXT:    [[C:%.*]] = call i8 @llvm.scmp.i8.i32(i32 [[A]], i32 [[B]])
+; EARLY-NEXT:    switch i8 [[C]], label %[[DEF:.*]] [
+; EARLY-NEXT:      i8 -1, label %[[END:.*]]
+; EARLY-NEXT:      i8 1, label %[[GT:.*]]
+; EARLY-NEXT:    ]
+; EARLY:       [[DEF]]:
+; EARLY-NEXT:    call void @foo()
+; EARLY-NEXT:    br label %[[END]]
+; EARLY:       [[GT]]:
+; EARLY-NEXT:    br label %[[END]]
+; EARLY:       [[END]]:
+; EARLY-NEXT:    [[R:%.*]] = phi i32 [ 17, %[[DEF]] ], [ 9, %[[GT]] ], [ 5, %[[ENTRY]] ]
+; EARLY-NEXT:    ret i32 [[R]]
+;
+; LATE-LABEL: define i32 @scmp_constant_cases_side_effect_default(
+; LATE-SAME: i32 [[A:%.*]], i32 [[B:%.*]]) {
+; LATE-NEXT:  [[ENTRY:.*]]:
+; LATE-NEXT:    [[TMP0:%.*]] = icmp slt i32 [[A]], [[B]]
+; LATE-NEXT:    br i1 [[TMP0]], label %[[END:.*]], label %[[CMP_NEXT:.*]]
+; LATE:       [[CMP_NEXT]]:
+; LATE-NEXT:    [[TMP1:%.*]] = icmp sgt i32 [[A]], [[B]]
+; LATE-NEXT:    br i1 [[TMP1]], label %[[END]], label %[[DEF:.*]]
+; LATE:       [[DEF]]:
+; LATE-NEXT:    call void @foo()
+; LATE-NEXT:    br label %[[END]]
+; LATE:       [[END]]:
+; LATE-NEXT:    [[R:%.*]] = phi i32 [ 17, %[[DEF]] ], [ 5, %[[ENTRY]] ], [ 9, %[[CMP_NEXT]] ]
+; LATE-NEXT:    ret i32 [[R]]
 ;
 entry:
   %c = call i8 @llvm.scmp.i8.i32(i32 %a, i32 %b)
@@ -864,16 +965,50 @@ end:
 }
 
 ; Keep the following checks focused on each regression's specific behavior.
-; UTC_ARGS: --disable
 
 ; Sort by weight, preserve signed comparisons, and weight each remaining branch.
 define void @three_destinations_weighted_signed(i32 %a, i32 %b) {
-; CHECK-LABEL: define void @three_destinations_weighted_signed(
-; CHECK: [[SIGNED_LT:%.*]] = icmp slt i32 %a, %b
-; CHECK-NEXT: br i1 [[SIGNED_LT]], label %less, label %[[SIGNED_NEXT:.*]], !prof [[THREE_FIRST:![0-9]+]]
-; CHECK: [[SIGNED_NEXT]]:
-; CHECK-NEXT: [[SIGNED_GT:%.*]] = icmp sgt i32 %a, %b
-; CHECK-NEXT: br i1 [[SIGNED_GT]], label %greater, label %equal, !prof [[THREE_SECOND:![0-9]+]]
+; EARLY-LABEL: define void @three_destinations_weighted_signed(
+; EARLY-SAME: i32 [[A:%.*]], i32 [[B:%.*]]) {
+; EARLY-NEXT:    [[CMP:%.*]] = call i8 @llvm.scmp.i8.i32(i32 [[A]], i32 [[B]])
+; EARLY-NEXT:    switch i8 [[CMP]], label %[[DEAD:.*]] [
+; EARLY-NEXT:      i8 0, label %[[EQUAL:.*]]
+; EARLY-NEXT:      i8 1, label %[[GREATER:.*]]
+; EARLY-NEXT:      i8 -1, label %[[LESS:.*]]
+; EARLY-NEXT:    ], !prof [[PROF2:![0-9]+]]
+; EARLY:       [[COMMON_RET:.*]]:
+; EARLY-NEXT:    ret void
+; EARLY:       [[EQUAL]]:
+; EARLY-NEXT:    call void @equal()
+; EARLY-NEXT:    br label %[[COMMON_RET]]
+; EARLY:       [[GREATER]]:
+; EARLY-NEXT:    call void @greater()
+; EARLY-NEXT:    br label %[[COMMON_RET]]
+; EARLY:       [[LESS]]:
+; EARLY-NEXT:    call void @less()
+; EARLY-NEXT:    br label %[[COMMON_RET]]
+; EARLY:       [[DEAD]]:
+; EARLY-NEXT:    unreachable
+;
+; LATE-LABEL: define void @three_destinations_weighted_signed(
+; LATE-SAME: i32 [[A:%.*]], i32 [[B:%.*]]) {
+; LATE-NEXT:    [[TMP1:%.*]] = icmp slt i32 [[A]], [[B]]
+; LATE-NEXT:    br i1 [[TMP1]], label %[[LESS:.*]], label %[[CMP_NEXT:.*]], !prof [[PROF2:![0-9]+]]
+; LATE:       [[CMP_NEXT]]:
+; LATE-NEXT:    [[TMP2:%.*]] = icmp sgt i32 [[A]], [[B]]
+; LATE-NEXT:    br i1 [[TMP2]], label %[[GREATER:.*]], label %[[EQUAL:.*]], !prof [[PROF3:![0-9]+]]
+; LATE:       [[COMMON_RET:.*]]:
+; LATE-NEXT:    ret void
+; LATE:       [[EQUAL]]:
+; LATE-NEXT:    call void @equal()
+; LATE-NEXT:    br label %[[COMMON_RET]]
+; LATE:       [[GREATER]]:
+; LATE-NEXT:    call void @greater()
+; LATE-NEXT:    br label %[[COMMON_RET]]
+; LATE:       [[LESS]]:
+; LATE-NEXT:    call void @less()
+; LATE-NEXT:    br label %[[COMMON_RET]]
+;
   %cmp = call i8 @llvm.scmp.i8.i32(i32 %a, i32 %b)
   switch i8 %cmp, label %dead [
   i8 0, label %equal
@@ -895,12 +1030,44 @@ dead:
 
 ; Tied weights preserve case order; both branches retain unpredictable metadata.
 define void @three_destinations_tied(i32 %a, i32 %b) {
-; CHECK-LABEL: define void @three_destinations_tied(
-; CHECK: [[TIED_EQ:%.*]] = icmp eq i32 %a, %b
-; CHECK-NEXT: br i1 [[TIED_EQ]], label %equal, label %[[TIED_NEXT:.*]], !prof {{![0-9]+}}, !unpredictable [[META0]]
-; CHECK: [[TIED_NEXT]]:
-; CHECK-NEXT: [[TIED_GT:%.*]] = icmp ugt i32 %a, %b
-; CHECK-NEXT: br i1 [[TIED_GT]], label %greater, label %less, !prof {{![0-9]+}}, !unpredictable [[META0]]
+; EARLY-LABEL: define void @three_destinations_tied(
+; EARLY-SAME: i32 [[A:%.*]], i32 [[B:%.*]]) {
+; EARLY-NEXT:    [[CMP:%.*]] = call i8 @llvm.ucmp.i8.i32(i32 [[A]], i32 [[B]])
+; EARLY-NEXT:    switch i8 [[CMP]], label %[[LESS:.*]] [
+; EARLY-NEXT:      i8 0, label %[[EQUAL:.*]]
+; EARLY-NEXT:      i8 1, label %[[GREATER:.*]]
+; EARLY-NEXT:    ], !prof [[PROF3:![0-9]+]], !unpredictable [[META0]]
+; EARLY:       [[COMMON_RET:.*]]:
+; EARLY-NEXT:    ret void
+; EARLY:       [[EQUAL]]:
+; EARLY-NEXT:    call void @equal()
+; EARLY-NEXT:    br label %[[COMMON_RET]]
+; EARLY:       [[GREATER]]:
+; EARLY-NEXT:    call void @greater()
+; EARLY-NEXT:    br label %[[COMMON_RET]]
+; EARLY:       [[LESS]]:
+; EARLY-NEXT:    call void @less()
+; EARLY-NEXT:    br label %[[COMMON_RET]]
+;
+; LATE-LABEL: define void @three_destinations_tied(
+; LATE-SAME: i32 [[A:%.*]], i32 [[B:%.*]]) {
+; LATE-NEXT:    [[TMP1:%.*]] = icmp eq i32 [[A]], [[B]]
+; LATE-NEXT:    br i1 [[TMP1]], label %[[EQUAL:.*]], label %[[CMP_NEXT:.*]], !prof [[PROF4:![0-9]+]], !unpredictable [[META0]]
+; LATE:       [[CMP_NEXT]]:
+; LATE-NEXT:    [[TMP2:%.*]] = icmp ugt i32 [[A]], [[B]]
+; LATE-NEXT:    br i1 [[TMP2]], label %[[GREATER:.*]], label %[[LESS:.*]], !prof [[PROF5:![0-9]+]], !unpredictable [[META0]]
+; LATE:       [[COMMON_RET:.*]]:
+; LATE-NEXT:    ret void
+; LATE:       [[EQUAL]]:
+; LATE-NEXT:    call void @equal()
+; LATE-NEXT:    br label %[[COMMON_RET]]
+; LATE:       [[GREATER]]:
+; LATE-NEXT:    call void @greater()
+; LATE-NEXT:    br label %[[COMMON_RET]]
+; LATE:       [[LESS]]:
+; LATE-NEXT:    call void @less()
+; LATE-NEXT:    br label %[[COMMON_RET]]
+;
   %cmp = call i8 @llvm.ucmp.i8.i32(i32 %a, i32 %b)
   switch i8 %cmp, label %less [
   i8 0, label %equal
@@ -919,9 +1086,44 @@ less:
 
 ; The hottest destination can be the default covering the missing result.
 define void @two_cases_hot_default(i32 %a, i32 %b) {
-; CHECK-LABEL: define void @two_cases_hot_default(
-; CHECK: [[DEFAULT_LT:%.*]] = icmp slt i32 %a, %b
-; CHECK-NEXT: br i1 [[DEFAULT_LT]], label %less, label %{{.*}}, !prof [[THREE_FIRST]]
+; EARLY-LABEL: define void @two_cases_hot_default(
+; EARLY-SAME: i32 [[A:%.*]], i32 [[B:%.*]]) {
+; EARLY-NEXT:    [[CMP:%.*]] = call i8 @llvm.scmp.i8.i32(i32 [[A]], i32 [[B]])
+; EARLY-NEXT:    switch i8 [[CMP]], label %[[LESS:.*]] [
+; EARLY-NEXT:      i8 0, label %[[EQUAL:.*]]
+; EARLY-NEXT:      i8 1, label %[[GREATER:.*]]
+; EARLY-NEXT:    ], !prof [[PROF4:![0-9]+]]
+; EARLY:       [[COMMON_RET:.*]]:
+; EARLY-NEXT:    ret void
+; EARLY:       [[EQUAL]]:
+; EARLY-NEXT:    call void @equal()
+; EARLY-NEXT:    br label %[[COMMON_RET]]
+; EARLY:       [[GREATER]]:
+; EARLY-NEXT:    call void @greater()
+; EARLY-NEXT:    br label %[[COMMON_RET]]
+; EARLY:       [[LESS]]:
+; EARLY-NEXT:    call void @less()
+; EARLY-NEXT:    br label %[[COMMON_RET]]
+;
+; LATE-LABEL: define void @two_cases_hot_default(
+; LATE-SAME: i32 [[A:%.*]], i32 [[B:%.*]]) {
+; LATE-NEXT:    [[TMP1:%.*]] = icmp slt i32 [[A]], [[B]]
+; LATE-NEXT:    br i1 [[TMP1]], label %[[LESS:.*]], label %[[CMP_NEXT:.*]], !prof [[PROF2]]
+; LATE:       [[CMP_NEXT]]:
+; LATE-NEXT:    [[TMP2:%.*]] = icmp sgt i32 [[A]], [[B]]
+; LATE-NEXT:    br i1 [[TMP2]], label %[[GREATER:.*]], label %[[EQUAL:.*]], !prof [[PROF3]]
+; LATE:       [[COMMON_RET:.*]]:
+; LATE-NEXT:    ret void
+; LATE:       [[EQUAL]]:
+; LATE-NEXT:    call void @equal()
+; LATE-NEXT:    br label %[[COMMON_RET]]
+; LATE:       [[GREATER]]:
+; LATE-NEXT:    call void @greater()
+; LATE-NEXT:    br label %[[COMMON_RET]]
+; LATE:       [[LESS]]:
+; LATE-NEXT:    call void @less()
+; LATE-NEXT:    br label %[[COMMON_RET]]
+;
   %cmp = call i8 @llvm.scmp.i8.i32(i32 %a, i32 %b)
   switch i8 %cmp, label %less [
   i8 0, label %equal
@@ -940,9 +1142,32 @@ less:
 
 ; Merge before sorting, using a wide sum and fitting the resulting weights.
 define void @merged_weights_overflow(i32 %a, i32 %b) {
-; CHECK-LABEL: define void @merged_weights_overflow(
-; CHECK: [[MERGED_LE:%.*]] = icmp sle i32 %a, %b
-; CHECK-NEXT: br i1 [[MERGED_LE]], label %other, label %greater, !prof [[MERGED_WEIGHTS:![0-9]+]]
+; EARLY-LABEL: define void @merged_weights_overflow(
+; EARLY-SAME: i32 [[A:%.*]], i32 [[B:%.*]]) {
+; EARLY-NEXT:    [[TMP1:%.*]] = icmp sle i32 [[A]], [[B]]
+; EARLY-NEXT:    br i1 [[TMP1]], label %[[OTHER:.*]], label %[[GREATER:.*]], !prof [[PROF5:![0-9]+]]
+; EARLY:       [[COMMON_RET:.*]]:
+; EARLY-NEXT:    ret void
+; EARLY:       [[OTHER]]:
+; EARLY-NEXT:    call void @less()
+; EARLY-NEXT:    br label %[[COMMON_RET]]
+; EARLY:       [[GREATER]]:
+; EARLY-NEXT:    call void @greater()
+; EARLY-NEXT:    br label %[[COMMON_RET]]
+;
+; LATE-LABEL: define void @merged_weights_overflow(
+; LATE-SAME: i32 [[A:%.*]], i32 [[B:%.*]]) {
+; LATE-NEXT:    [[TMP1:%.*]] = icmp sle i32 [[A]], [[B]]
+; LATE-NEXT:    br i1 [[TMP1]], label %[[OTHER:.*]], label %[[GREATER:.*]], !prof [[PROF6:![0-9]+]]
+; LATE:       [[COMMON_RET:.*]]:
+; LATE-NEXT:    ret void
+; LATE:       [[OTHER]]:
+; LATE-NEXT:    call void @less()
+; LATE-NEXT:    br label %[[COMMON_RET]]
+; LATE:       [[GREATER]]:
+; LATE-NEXT:    call void @greater()
+; LATE-NEXT:    br label %[[COMMON_RET]]
+;
   %cmp = call i8 @llvm.scmp.i8.i32(i32 %a, i32 %b)
   switch i8 %cmp, label %dead [
   i8 1, label %greater
@@ -961,13 +1186,42 @@ dead:
 
 ; Bail out when a possible result is covered only by an unreachable default.
 define void @two_cases_unreachable_default(i32 %a, i32 %b) {
-; CHECK-LABEL: define void @two_cases_unreachable_default(
-; CHECK: [[UNCOVERED_CMP:%.*]] = call i8 @llvm.ucmp.i8.i32
-; CHECK-NEXT: switch i8 [[UNCOVERED_CMP]], label %dead [
-; CHECK-NEXT: i8 0, label %equal
-; CHECK-NEXT: i8 1, label %greater
-; CHECK: dead:
-; CHECK-NEXT: unreachable
+; EARLY-LABEL: define void @two_cases_unreachable_default(
+; EARLY-SAME: i32 [[A:%.*]], i32 [[B:%.*]]) {
+; EARLY-NEXT:    [[CMP:%.*]] = call i8 @llvm.ucmp.i8.i32(i32 [[A]], i32 [[B]])
+; EARLY-NEXT:    switch i8 [[CMP]], label %[[DEAD:.*]] [
+; EARLY-NEXT:      i8 0, label %[[EQUAL:.*]]
+; EARLY-NEXT:      i8 1, label %[[GREATER:.*]]
+; EARLY-NEXT:    ], !prof [[PROF6:![0-9]+]]
+; EARLY:       [[COMMON_RET:.*]]:
+; EARLY-NEXT:    ret void
+; EARLY:       [[EQUAL]]:
+; EARLY-NEXT:    call void @equal()
+; EARLY-NEXT:    br label %[[COMMON_RET]]
+; EARLY:       [[GREATER]]:
+; EARLY-NEXT:    call void @greater()
+; EARLY-NEXT:    br label %[[COMMON_RET]]
+; EARLY:       [[DEAD]]:
+; EARLY-NEXT:    unreachable
+;
+; LATE-LABEL: define void @two_cases_unreachable_default(
+; LATE-SAME: i32 [[A:%.*]], i32 [[B:%.*]]) {
+; LATE-NEXT:    [[CMP:%.*]] = call i8 @llvm.ucmp.i8.i32(i32 [[A]], i32 [[B]])
+; LATE-NEXT:    switch i8 [[CMP]], label %[[DEAD:.*]] [
+; LATE-NEXT:      i8 0, label %[[EQUAL:.*]]
+; LATE-NEXT:      i8 1, label %[[GREATER:.*]]
+; LATE-NEXT:    ], !prof [[PROF7:![0-9]+]]
+; LATE:       [[COMMON_RET:.*]]:
+; LATE-NEXT:    ret void
+; LATE:       [[EQUAL]]:
+; LATE-NEXT:    call void @equal()
+; LATE-NEXT:    br label %[[COMMON_RET]]
+; LATE:       [[GREATER]]:
+; LATE-NEXT:    call void @greater()
+; LATE-NEXT:    br label %[[COMMON_RET]]
+; LATE:       [[DEAD]]:
+; LATE-NEXT:    unreachable
+;
   %cmp = call i8 @llvm.ucmp.i8.i32(i32 %a, i32 %b)
   switch i8 %cmp, label %dead [
   i8 0, label %equal
@@ -985,11 +1239,54 @@ dead:
 
 ; Bail out on a case value too wide for int64_t, even after collecting valid cases.
 define void @impossible_wide_cases(i32 %a, i32 %b) {
-; CHECK-LABEL: define void @impossible_wide_cases(
-; CHECK: [[WIDE_CMP:%.*]] = call i128 @llvm.ucmp.i128.i32
-; CHECK-NEXT: switch i128 [[WIDE_CMP]], label %greater [
-; CHECK: i128 18446744073709551616, label %dead
-; CHECK: i128 -2, label %dead
+; EARLY-LABEL: define void @impossible_wide_cases(
+; EARLY-SAME: i32 [[A:%.*]], i32 [[B:%.*]]) {
+; EARLY-NEXT:    [[CMP:%.*]] = call i128 @llvm.ucmp.i128.i32(i32 [[A]], i32 [[B]])
+; EARLY-NEXT:    switch i128 [[CMP]], label %[[GREATER:.*]] [
+; EARLY-NEXT:      i128 -1, label %[[LESS:.*]]
+; EARLY-NEXT:      i128 0, label %[[EQUAL:.*]]
+; EARLY-NEXT:      i128 18446744073709551616, label %[[DEAD:.*]]
+; EARLY-NEXT:      i128 -2, label %[[DEAD]]
+; EARLY-NEXT:    ], !prof [[PROF7:![0-9]+]]
+; EARLY:       [[COMMON_RET:.*]]:
+; EARLY-NEXT:    ret void
+; EARLY:       [[EQUAL]]:
+; EARLY-NEXT:    call void @equal()
+; EARLY-NEXT:    br label %[[COMMON_RET]]
+; EARLY:       [[GREATER]]:
+; EARLY-NEXT:    call void @greater()
+; EARLY-NEXT:    br label %[[COMMON_RET]]
+; EARLY:       [[LESS]]:
+; EARLY-NEXT:    call void @less()
+; EARLY-NEXT:    br label %[[COMMON_RET]]
+; EARLY:       [[DEAD]]:
+; EARLY-NEXT:    call void @impossible()
+; EARLY-NEXT:    br label %[[COMMON_RET]]
+;
+; LATE-LABEL: define void @impossible_wide_cases(
+; LATE-SAME: i32 [[A:%.*]], i32 [[B:%.*]]) {
+; LATE-NEXT:    [[CMP:%.*]] = call i128 @llvm.ucmp.i128.i32(i32 [[A]], i32 [[B]])
+; LATE-NEXT:    switch i128 [[CMP]], label %[[GREATER:.*]] [
+; LATE-NEXT:      i128 -1, label %[[LESS:.*]]
+; LATE-NEXT:      i128 0, label %[[EQUAL:.*]]
+; LATE-NEXT:      i128 18446744073709551616, label %[[DEAD:.*]]
+; LATE-NEXT:      i128 -2, label %[[DEAD]]
+; LATE-NEXT:    ], !prof [[PROF8:![0-9]+]]
+; LATE:       [[COMMON_RET:.*]]:
+; LATE-NEXT:    ret void
+; LATE:       [[EQUAL]]:
+; LATE-NEXT:    call void @equal()
+; LATE-NEXT:    br label %[[COMMON_RET]]
+; LATE:       [[GREATER]]:
+; LATE-NEXT:    call void @greater()
+; LATE-NEXT:    br label %[[COMMON_RET]]
+; LATE:       [[LESS]]:
+; LATE-NEXT:    call void @less()
+; LATE-NEXT:    br label %[[COMMON_RET]]
+; LATE:       [[DEAD]]:
+; LATE-NEXT:    call void @impossible()
+; LATE-NEXT:    br label %[[COMMON_RET]]
+;
   %cmp = call i128 @llvm.ucmp.i128.i32(i32 %a, i32 %b)
   switch i128 %cmp, label %greater [
   i128 -1, label %less
@@ -1013,14 +1310,73 @@ dead:
 
 ; Move only the later arms' PHI entries; preserve the first arm and other preds.
 define i32 @three_destinations_phi(i8 %x, i32 %a, i32 %b) {
-; CHECK-LABEL: define i32 @three_destinations_phi(
-; CHECK: sw:
-; CHECK: br i1 {{%.*}}, label %equal, label %[[PHI_NEXT:.*]],
-; CHECK: [[PHI_NEXT]]:
-; CHECK: br i1 {{%.*}}, label %greater, label %less
-; CHECK: %e = phi i32 [ 1, %entry ], [ 2, %sw ]{{$}}
-; CHECK: %g = phi i32 [ 3, %entry ], [ 4, %[[PHI_NEXT]] ]{{$}}
-; CHECK: %l = phi i32 [ 5, %entry ], [ 6, %[[PHI_NEXT]] ]{{$}}
+; EARLY-LABEL: define i32 @three_destinations_phi(
+; EARLY-SAME: i8 [[X:%.*]], i32 [[A:%.*]], i32 [[B:%.*]]) {
+; EARLY-NEXT:  [[ENTRY:.*]]:
+; EARLY-NEXT:    switch i8 [[X]], label %[[DEAD:.*]] [
+; EARLY-NEXT:      i8 0, label %[[SW:.*]]
+; EARLY-NEXT:      i8 1, label %[[EQUAL:.*]]
+; EARLY-NEXT:      i8 2, label %[[GREATER:.*]]
+; EARLY-NEXT:      i8 3, label %[[LESS:.*]]
+; EARLY-NEXT:    ]
+; EARLY:       [[SW]]:
+; EARLY-NEXT:    [[CMP:%.*]] = call i8 @llvm.ucmp.i8.i32(i32 [[A]], i32 [[B]])
+; EARLY-NEXT:    switch i8 [[CMP]], label %[[DEAD]] [
+; EARLY-NEXT:      i8 0, label %[[EQUAL]]
+; EARLY-NEXT:      i8 1, label %[[GREATER]]
+; EARLY-NEXT:      i8 -1, label %[[LESS]]
+; EARLY-NEXT:    ], !prof [[PROF8:![0-9]+]]
+; EARLY:       [[COMMON_RET:.*]]:
+; EARLY-NEXT:    [[COMMON_RET_OP:%.*]] = phi i32 [ [[E:%.*]], %[[EQUAL]] ], [ [[G:%.*]], %[[GREATER]] ], [ [[L:%.*]], %[[LESS]] ]
+; EARLY-NEXT:    ret i32 [[COMMON_RET_OP]]
+; EARLY:       [[EQUAL]]:
+; EARLY-NEXT:    [[E]] = phi i32 [ 1, %[[ENTRY]] ], [ 2, %[[SW]] ]
+; EARLY-NEXT:    call void @equal()
+; EARLY-NEXT:    br label %[[COMMON_RET]]
+; EARLY:       [[GREATER]]:
+; EARLY-NEXT:    [[G]] = phi i32 [ 3, %[[ENTRY]] ], [ 4, %[[SW]] ]
+; EARLY-NEXT:    call void @greater()
+; EARLY-NEXT:    br label %[[COMMON_RET]]
+; EARLY:       [[LESS]]:
+; EARLY-NEXT:    [[L]] = phi i32 [ 5, %[[ENTRY]] ], [ 6, %[[SW]] ]
+; EARLY-NEXT:    call void @less()
+; EARLY-NEXT:    br label %[[COMMON_RET]]
+; EARLY:       [[DEAD]]:
+; EARLY-NEXT:    unreachable
+;
+; LATE-LABEL: define i32 @three_destinations_phi(
+; LATE-SAME: i8 [[X:%.*]], i32 [[A:%.*]], i32 [[B:%.*]]) {
+; LATE-NEXT:  [[ENTRY:.*]]:
+; LATE-NEXT:    switch i8 [[X]], label %[[DEAD:.*]] [
+; LATE-NEXT:      i8 0, label %[[SW:.*]]
+; LATE-NEXT:      i8 1, label %[[EQUAL:.*]]
+; LATE-NEXT:      i8 2, label %[[GREATER:.*]]
+; LATE-NEXT:      i8 3, label %[[LESS:.*]]
+; LATE-NEXT:    ]
+; LATE:       [[SW]]:
+; LATE-NEXT:    [[TMP0:%.*]] = icmp eq i32 [[A]], [[B]]
+; LATE-NEXT:    br i1 [[TMP0]], label %[[EQUAL]], label %[[CMP_NEXT:.*]], !prof [[PROF2]]
+; LATE:       [[CMP_NEXT]]:
+; LATE-NEXT:    [[TMP1:%.*]] = icmp ugt i32 [[A]], [[B]]
+; LATE-NEXT:    br i1 [[TMP1]], label %[[GREATER]], label %[[LESS]], !prof [[PROF3]]
+; LATE:       [[COMMON_RET:.*]]:
+; LATE-NEXT:    [[COMMON_RET_OP:%.*]] = phi i32 [ [[E:%.*]], %[[EQUAL]] ], [ [[G:%.*]], %[[GREATER]] ], [ [[L:%.*]], %[[LESS]] ]
+; LATE-NEXT:    ret i32 [[COMMON_RET_OP]]
+; LATE:       [[EQUAL]]:
+; LATE-NEXT:    [[E]] = phi i32 [ 1, %[[ENTRY]] ], [ 2, %[[SW]] ]
+; LATE-NEXT:    call void @equal()
+; LATE-NEXT:    br label %[[COMMON_RET]]
+; LATE:       [[GREATER]]:
+; LATE-NEXT:    [[G]] = phi i32 [ 3, %[[ENTRY]] ], [ 4, %[[CMP_NEXT]] ]
+; LATE-NEXT:    call void @greater()
+; LATE-NEXT:    br label %[[COMMON_RET]]
+; LATE:       [[LESS]]:
+; LATE-NEXT:    [[L]] = phi i32 [ 5, %[[ENTRY]] ], [ 6, %[[CMP_NEXT]] ]
+; LATE-NEXT:    call void @less()
+; LATE-NEXT:    br label %[[COMMON_RET]]
+; LATE:       [[DEAD]]:
+; LATE-NEXT:    unreachable
+;
 entry:
   switch i8 %x, label %dead [
   i8 0, label %sw
@@ -1054,10 +1410,51 @@ dead:
 
 ; A moved loop backedge must update the header PHI's predecessor.
 define void @three_destinations_loop(i32 %start, i32 %b) {
-; CHECK-LABEL: define void @three_destinations_loop(
-; CHECK: %a = phi i32 [ %start, %entry ], [ %next, %[[LOOP_NEXT:.*]] ]
-; CHECK: [[LOOP_NEXT]]:
-; CHECK: br i1 {{%.*}}, label %greater, label %loop
+; EARLY-LABEL: define void @three_destinations_loop(
+; EARLY-SAME: i32 [[START:%.*]], i32 [[B:%.*]]) {
+; EARLY-NEXT:  [[ENTRY:.*]]:
+; EARLY-NEXT:    br label %[[LOOP:.*]]
+; EARLY:       [[LOOP]]:
+; EARLY-NEXT:    [[A:%.*]] = phi i32 [ [[START]], %[[ENTRY]] ], [ [[NEXT:%.*]], %[[LOOP]] ]
+; EARLY-NEXT:    [[NEXT]] = add i32 [[A]], 1
+; EARLY-NEXT:    [[CMP:%.*]] = call i8 @llvm.scmp.i8.i32(i32 [[A]], i32 [[B]])
+; EARLY-NEXT:    switch i8 [[CMP]], label %[[DEAD:.*]] [
+; EARLY-NEXT:      i8 0, label %[[EQUAL:.*]]
+; EARLY-NEXT:      i8 1, label %[[GREATER:.*]]
+; EARLY-NEXT:      i8 -1, label %[[LOOP]]
+; EARLY-NEXT:    ]
+; EARLY:       [[COMMON_RET:.*]]:
+; EARLY-NEXT:    ret void
+; EARLY:       [[EQUAL]]:
+; EARLY-NEXT:    call void @equal()
+; EARLY-NEXT:    br label %[[COMMON_RET]]
+; EARLY:       [[GREATER]]:
+; EARLY-NEXT:    call void @greater()
+; EARLY-NEXT:    br label %[[COMMON_RET]]
+; EARLY:       [[DEAD]]:
+; EARLY-NEXT:    unreachable
+;
+; LATE-LABEL: define void @three_destinations_loop(
+; LATE-SAME: i32 [[START:%.*]], i32 [[B:%.*]]) {
+; LATE-NEXT:  [[ENTRY:.*]]:
+; LATE-NEXT:    br label %[[LOOP:.*]]
+; LATE:       [[LOOP]]:
+; LATE-NEXT:    [[A:%.*]] = phi i32 [ [[START]], %[[ENTRY]] ], [ [[NEXT:%.*]], %[[CMP_NEXT:.*]] ]
+; LATE-NEXT:    [[NEXT]] = add i32 [[A]], 1
+; LATE-NEXT:    [[TMP0:%.*]] = icmp eq i32 [[A]], [[B]]
+; LATE-NEXT:    br i1 [[TMP0]], label %[[EQUAL:.*]], label %[[CMP_NEXT]]
+; LATE:       [[CMP_NEXT]]:
+; LATE-NEXT:    [[TMP1:%.*]] = icmp sgt i32 [[A]], [[B]]
+; LATE-NEXT:    br i1 [[TMP1]], label %[[GREATER:.*]], label %[[LOOP]]
+; LATE:       [[COMMON_RET:.*]]:
+; LATE-NEXT:    ret void
+; LATE:       [[EQUAL]]:
+; LATE-NEXT:    call void @equal()
+; LATE-NEXT:    br label %[[COMMON_RET]]
+; LATE:       [[GREATER]]:
+; LATE-NEXT:    call void @greater()
+; LATE-NEXT:    br label %[[COMMON_RET]]
+;
 entry:
   br label %loop
 loop:
@@ -1081,9 +1478,50 @@ dead:
 
 ; Retain one PHI entry for merged cases and leave other predecessors unchanged.
 define i32 @merged_destination_phis(i8 %x, i32 %a, i32 %b) {
-; CHECK-LABEL: define i32 @merged_destination_phis(
-; CHECK: %o = phi i32 [ 1, %entry ], [ 2, %sw ]{{$}}
-; CHECK: %g = phi i32 [ 3, %entry ], [ 4, %sw ]{{$}}
+; EARLY-LABEL: define i32 @merged_destination_phis(
+; EARLY-SAME: i8 [[X:%.*]], i32 [[A:%.*]], i32 [[B:%.*]]) {
+; EARLY-NEXT:  [[ENTRY:.*]]:
+; EARLY-NEXT:    switch i8 [[X]], label %[[SW:.*]] [
+; EARLY-NEXT:      i8 0, label %[[OTHER:.*]]
+; EARLY-NEXT:      i8 1, label %[[GREATER:.*]]
+; EARLY-NEXT:    ]
+; EARLY:       [[SW]]:
+; EARLY-NEXT:    [[TMP0:%.*]] = icmp ule i32 [[A]], [[B]]
+; EARLY-NEXT:    br i1 [[TMP0]], label %[[OTHER]], label %[[GREATER]], !prof [[PROF9:![0-9]+]]
+; EARLY:       [[COMMON_RET:.*]]:
+; EARLY-NEXT:    [[COMMON_RET_OP:%.*]] = phi i32 [ [[O:%.*]], %[[OTHER]] ], [ [[G:%.*]], %[[GREATER]] ]
+; EARLY-NEXT:    ret i32 [[COMMON_RET_OP]]
+; EARLY:       [[OTHER]]:
+; EARLY-NEXT:    [[O]] = phi i32 [ 1, %[[ENTRY]] ], [ 2, %[[SW]] ]
+; EARLY-NEXT:    call void @less()
+; EARLY-NEXT:    br label %[[COMMON_RET]]
+; EARLY:       [[GREATER]]:
+; EARLY-NEXT:    [[G]] = phi i32 [ 3, %[[ENTRY]] ], [ 4, %[[SW]] ]
+; EARLY-NEXT:    call void @greater()
+; EARLY-NEXT:    br label %[[COMMON_RET]]
+;
+; LATE-LABEL: define i32 @merged_destination_phis(
+; LATE-SAME: i8 [[X:%.*]], i32 [[A:%.*]], i32 [[B:%.*]]) {
+; LATE-NEXT:  [[ENTRY:.*]]:
+; LATE-NEXT:    switch i8 [[X]], label %[[SW:.*]] [
+; LATE-NEXT:      i8 0, label %[[OTHER:.*]]
+; LATE-NEXT:      i8 1, label %[[GREATER:.*]]
+; LATE-NEXT:    ]
+; LATE:       [[SW]]:
+; LATE-NEXT:    [[TMP0:%.*]] = icmp ule i32 [[A]], [[B]]
+; LATE-NEXT:    br i1 [[TMP0]], label %[[OTHER]], label %[[GREATER]], !prof [[PROF2]]
+; LATE:       [[COMMON_RET:.*]]:
+; LATE-NEXT:    [[COMMON_RET_OP:%.*]] = phi i32 [ [[O:%.*]], %[[OTHER]] ], [ [[G:%.*]], %[[GREATER]] ]
+; LATE-NEXT:    ret i32 [[COMMON_RET_OP]]
+; LATE:       [[OTHER]]:
+; LATE-NEXT:    [[O]] = phi i32 [ 1, %[[ENTRY]] ], [ 2, %[[SW]] ]
+; LATE-NEXT:    call void @less()
+; LATE-NEXT:    br label %[[COMMON_RET]]
+; LATE:       [[GREATER]]:
+; LATE-NEXT:    [[G]] = phi i32 [ 3, %[[ENTRY]] ], [ 4, %[[SW]] ]
+; LATE-NEXT:    call void @greater()
+; LATE-NEXT:    br label %[[COMMON_RET]]
+;
 entry:
   switch i8 %x, label %sw [
   i8 0, label %other
@@ -1110,9 +1548,47 @@ dead:
 
 ; Preserve llvm.expect provenance on both generated branches.
 define void @three_destinations_expected(i32 %a, i32 %b) {
-; CHECK-LABEL: define void @three_destinations_expected(
-; CHECK: br i1 {{%.*}}, label %less, label %{{.*}}, !prof [[EXPECTED_FIRST:![0-9]+]]
-; CHECK: br i1 {{%.*}}, label %greater, label %equal, !prof [[EXPECTED_SECOND:![0-9]+]]
+; EARLY-LABEL: define void @three_destinations_expected(
+; EARLY-SAME: i32 [[A:%.*]], i32 [[B:%.*]]) {
+; EARLY-NEXT:    [[CMP:%.*]] = call i8 @llvm.ucmp.i8.i32(i32 [[A]], i32 [[B]])
+; EARLY-NEXT:    switch i8 [[CMP]], label %[[DEAD:.*]] [
+; EARLY-NEXT:      i8 0, label %[[EQUAL:.*]]
+; EARLY-NEXT:      i8 1, label %[[GREATER:.*]]
+; EARLY-NEXT:      i8 -1, label %[[LESS:.*]]
+; EARLY-NEXT:    ], !prof [[PROF10:![0-9]+]]
+; EARLY:       [[COMMON_RET:.*]]:
+; EARLY-NEXT:    ret void
+; EARLY:       [[EQUAL]]:
+; EARLY-NEXT:    call void @equal()
+; EARLY-NEXT:    br label %[[COMMON_RET]]
+; EARLY:       [[GREATER]]:
+; EARLY-NEXT:    call void @greater()
+; EARLY-NEXT:    br label %[[COMMON_RET]]
+; EARLY:       [[LESS]]:
+; EARLY-NEXT:    call void @less()
+; EARLY-NEXT:    br label %[[COMMON_RET]]
+; EARLY:       [[DEAD]]:
+; EARLY-NEXT:    unreachable
+;
+; LATE-LABEL: define void @three_destinations_expected(
+; LATE-SAME: i32 [[A:%.*]], i32 [[B:%.*]]) {
+; LATE-NEXT:    [[TMP1:%.*]] = icmp ult i32 [[A]], [[B]]
+; LATE-NEXT:    br i1 [[TMP1]], label %[[LESS:.*]], label %[[CMP_NEXT:.*]], !prof [[PROF9:![0-9]+]]
+; LATE:       [[CMP_NEXT]]:
+; LATE-NEXT:    [[TMP2:%.*]] = icmp ugt i32 [[A]], [[B]]
+; LATE-NEXT:    br i1 [[TMP2]], label %[[GREATER:.*]], label %[[EQUAL:.*]], !prof [[PROF10:![0-9]+]]
+; LATE:       [[COMMON_RET:.*]]:
+; LATE-NEXT:    ret void
+; LATE:       [[EQUAL]]:
+; LATE-NEXT:    call void @equal()
+; LATE-NEXT:    br label %[[COMMON_RET]]
+; LATE:       [[GREATER]]:
+; LATE-NEXT:    call void @greater()
+; LATE-NEXT:    br label %[[COMMON_RET]]
+; LATE:       [[LESS]]:
+; LATE-NEXT:    call void @less()
+; LATE-NEXT:    br label %[[COMMON_RET]]
+;
   %cmp = call i8 @llvm.ucmp.i8.i32(i32 %a, i32 %b)
   switch i8 %cmp, label %dead [
   i8 0, label %equal
@@ -1137,15 +1613,30 @@ declare void @greater()
 declare void @less()
 declare void @impossible()
 
-
 declare void @use(i8)
 declare void @foo()
 ;.
-; CHECK: [[META0]] = !{}
-; CHECK: [[PROF1]] = !{!"branch_weights", i32 30, i32 5}
-; CHECK-DAG: [[THREE_FIRST]] = !{!"branch_weights", i32 60, i32 40}
-; CHECK-DAG: [[THREE_SECOND]] = !{!"branch_weights", i32 30, i32 10}
-; CHECK-DAG: [[MERGED_WEIGHTS]] = !{!"branch_weights", i32 -1294967296, i32 2000000000}
-; CHECK-DAG: [[EXPECTED_FIRST]] = !{!"branch_weights", !"expected", i32 60, i32 40}
-; CHECK-DAG: [[EXPECTED_SECOND]] = !{!"branch_weights", !"expected", i32 30, i32 10}
+; EARLY: [[META0]] = !{}
+; EARLY: [[PROF1]] = !{!"branch_weights", i32 30, i32 5}
+; EARLY: [[PROF2]] = !{!"branch_weights", i32 0, i32 10, i32 30, i32 60}
+; EARLY: [[PROF3]] = !{!"branch_weights", i32 10, i32 10, i32 10}
+; EARLY: [[PROF4]] = !{!"branch_weights", i32 60, i32 10, i32 30}
+; EARLY: [[PROF5]] = !{!"branch_weights", i32 -1294967296, i32 2000000000}
+; EARLY: [[PROF6]] = !{!"branch_weights", i32 0, i32 20, i32 10}
+; EARLY: [[PROF7]] = !{!"branch_weights", i32 30, i32 60, i32 10, i32 100, i32 100}
+; EARLY: [[PROF8]] = !{!"branch_weights", i32 0, i32 60, i32 30, i32 10}
+; EARLY: [[PROF9]] = !{!"branch_weights", i32 60, i32 40}
+; EARLY: [[PROF10]] = !{!"branch_weights", !"expected", i32 0, i32 10, i32 30, i32 60}
+;.
+; LATE: [[META0]] = !{}
+; LATE: [[PROF1]] = !{!"branch_weights", i32 30, i32 5}
+; LATE: [[PROF2]] = !{!"branch_weights", i32 60, i32 40}
+; LATE: [[PROF3]] = !{!"branch_weights", i32 30, i32 10}
+; LATE: [[PROF4]] = !{!"branch_weights", i32 10, i32 20}
+; LATE: [[PROF5]] = !{!"branch_weights", i32 10, i32 10}
+; LATE: [[PROF6]] = !{!"branch_weights", i32 -1294967296, i32 2000000000}
+; LATE: [[PROF7]] = !{!"branch_weights", i32 0, i32 20, i32 10}
+; LATE: [[PROF8]] = !{!"branch_weights", i32 30, i32 60, i32 10, i32 100, i32 100}
+; LATE: [[PROF9]] = !{!"branch_weights", !"expected", i32 60, i32 40}
+; LATE: [[PROF10]] = !{!"branch_weights", !"expected", i32 30, i32 10}
 ;.

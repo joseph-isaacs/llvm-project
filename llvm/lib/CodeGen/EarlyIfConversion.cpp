@@ -1297,6 +1297,32 @@ bool EarlyIfConverter::shouldConvertIf() {
     unsigned MaxDepth = Slack + TailTrace.getInstrCycles(*PI.PHI).Depth;
     LLVM_DEBUG(dbgs() << "Slack " << Slack << ":\t" << *PI.PHI);
 
+    unsigned TDepth = adjCycles(TBBTrace.getPHIDepth(*PI.PHI), PI.TCycles);
+    unsigned FDepth = adjCycles(FBBTrace.getPHIDepth(*PI.PHI), PI.FCycles);
+
+    // The tail trace follows the predecessor with the fewest instructions,
+    // which is not necessarily the leg with the shortest critical path (it
+    // need not even be one of the legs of this diamond). The select delays
+    // the value arriving from the shorter leg until the longer leg and the
+    // condition are available, so the extension must also stay within the
+    // limit relative to the path through the shorter leg. Otherwise a diamond
+    // whose short leg is a long dependency chain of few instructions (e.g. a
+    // division) would have the other, faster leg silently slowed down to
+    // match it. Compute the depth and slack of the PHI along each leg's own
+    // trace; the height of the PHI only depends on the blocks below the tail
+    // and is the same in every trace.
+    unsigned PHIHeight = TailTrace.getInstrCycles(*PI.PHI).Height;
+    auto legMaxDepth = [&](const MachineTraceMetrics::Trace &LegTrace) {
+      unsigned Depth = LegTrace.getPHIDepth(*PI.PHI);
+      unsigned Crit = LegTrace.getCriticalPath();
+      unsigned LegSlack = Crit > Depth + PHIHeight ? Crit - Depth - PHIHeight : 0;
+      LLVM_DEBUG(dbgs() << "Leg depth " << Depth << ", slack " << LegSlack
+                        << ":\t" << LegTrace);
+      return Depth + LegSlack;
+    };
+    MaxDepth =
+        std::min({MaxDepth, legMaxDepth(TBBTrace), legMaxDepth(FBBTrace)});
+
     // The condition is pulled into the critical path.
     unsigned CondDepth = adjCycles(BranchDepth, PI.CondCycles);
     if (CondDepth > MaxDepth) {
@@ -1311,7 +1337,6 @@ bool EarlyIfConverter::shouldConvertIf() {
     }
 
     // The TBB value is pulled into the critical path.
-    unsigned TDepth = adjCycles(TBBTrace.getPHIDepth(*PI.PHI), PI.TCycles);
     if (TDepth > MaxDepth) {
       unsigned Extra = TDepth - MaxDepth;
       LLVM_DEBUG(dbgs() << "TBB data adds " << Extra << " cycles.\n");
@@ -1324,7 +1349,6 @@ bool EarlyIfConverter::shouldConvertIf() {
     }
 
     // The FBB value is pulled into the critical path.
-    unsigned FDepth = adjCycles(FBBTrace.getPHIDepth(*PI.PHI), PI.FCycles);
     if (FDepth > MaxDepth) {
       unsigned Extra = FDepth - MaxDepth;
       LLVM_DEBUG(dbgs() << "FBB data adds " << Extra << " cycles.\n");

@@ -289,6 +289,10 @@ public:
       return TBI.InstrDepth + TBI.InstrHeight;
     }
 
+    /// Return the predecessor through which the trace enters the center
+    /// block, or nullptr when the trace starts at the center block.
+    const MachineBasicBlock *getTracePred() const { return TBI.Pred; }
+
     /// Return the resource depth of the top/bottom of the trace center block.
     /// This is the number of cycles required to execute all instructions from
     /// the trace head to the trace center block. The resource depth only

@@ -60,21 +60,6 @@ BlockInstrLimit("early-ifcvt-limit", cl::init(30), cl::Hidden,
 static cl::opt<bool> Stress("stress-early-ifcvt", cl::Hidden,
   cl::desc("Turn all knobs to 11"));
 
-// Weight the critical path extension of each leg by how often it executes and
-// size the budget by how often the branch is expected to mispredict.
-static cl::opt<bool> UseBranchProbability(
-    "early-ifcvt-use-branch-prob", cl::Hidden, cl::init(true),
-    cl::desc("Use branch probabilities in the if-conversion cost model"));
-
-// Only a branch at least this likely to go one way counts as biased. Weaker
-// probabilities are usually static guesses (compare against zero, pointer
-// checks) and are treated as an unbiased branch, while profile data, loop
-// structure, expect hints and cold paths all clear this bar.
-static cl::opt<unsigned> BiasedBranchThreshold(
-    "early-ifcvt-biased-branch-threshold", cl::Hidden, cl::init(75),
-    cl::desc("Percent probability of the likely successor above which a "
-             "branch is considered biased in the if-conversion cost model"));
-
 // Enable analysis of data dependent branches (conditions derived from loads).
 static cl::opt<bool> EnableDataDependentBranchAnalysis(
     "enable-early-ifcvt-data-dependent", cl::Hidden, cl::init(false),
@@ -1245,33 +1230,8 @@ bool EarlyIfConverter::shouldConvertIf() {
   if (EnableDataDependentBranchAnalysis)
     DataDependent = isConditionDataDependent();
 
-  // How often each leg executes. Without usable probabilities assume an
-  // unbiased branch; that reproduces the historic budget of half the
-  // misprediction penalty below.
-  BranchProbability TProb(1, 2), FProb(1, 2);
-  if (UseBranchProbability && MBPI) {
-    BranchProbability T = MBPI->getEdgeProbability(IfConv.Head, IfConv.TBB);
-    BranchProbability F = MBPI->getEdgeProbability(IfConv.Head, IfConv.FBB);
-    if (!T.isUnknown() && !F.isUnknown() &&
-        std::max(T, F) >= BranchProbability(BiasedBranchThreshold, 100)) {
-      TProb = T;
-      FProb = F;
-    }
-  }
-  BranchProbability MinProb = std::min(TProb, FProb);
-  BranchProbability MaxProb = std::max(TProb, FProb);
-
-  // The branch predictor gets a biased branch right most of the time, so the
-  // expected cost of keeping the branch is about MinProb * MispredictPenalty
-  // per execution: half the penalty for an unbiased branch, and next to
-  // nothing for a branch that almost always goes the same way. That is the
-  // budget the extension of the critical path has to fit in. When
-  // hard-to-predict analysis is enabled, hard-to-predict branches get the full
-  // penalty instead of half.
-  unsigned Penalty = STI->getMispredictionPenalty();
-  unsigned CritLimit = MinProb.scale(DataDependent ? 2 * Penalty : Penalty);
-  LLVM_DEBUG(dbgs() << "Branch probability " << TProb << " / " << FProb
-                    << ", critical path limit " << CritLimit << '\n');
+  unsigned CritLimit = DataDependent ? STI->getMispredictionPenalty()
+                                     : STI->getMispredictionPenalty() / 2;
 
   MachineBasicBlock &MBB = *IfConv.Head;
   MachineOptimizationRemarkEmitter MORE(*MBB.getParent(), nullptr);
@@ -1360,62 +1320,45 @@ bool EarlyIfConverter::shouldConvertIf() {
                         << ":\t" << LegTrace);
       return Depth + LegSlack;
     };
-    // When the value would be ready on each leg without the select. The tail
-    // trace's own baseline applies to the leg it runs through; if it runs
-    // through some unrelated predecessor, keep it as a conservative bound on
-    // both legs.
-    const MachineBasicBlock *TailPred = TailTrace.getTracePred();
-    bool TailViaT = TailPred == IfConv.getTPred();
-    bool TailViaF = TailPred == IfConv.getFPred();
-    unsigned TBase = legMaxDepth(TBBTrace);
-    unsigned FBase = legMaxDepth(FBBTrace);
-    if (TailViaT || !TailViaF)
-      TBase = std::min(TBase, MaxDepth);
-    if (TailViaF || !TailViaT)
-      FBase = std::min(FBase, MaxDepth);
-    LLVM_DEBUG({
-      dbgs() << "Baseline depth: tail " << MaxDepth << " via ";
-      if (TailPred)
-        dbgs() << printMBBReference(*TailPred);
-      else
-        dbgs() << "none";
-      dbgs() << ", TBB " << TBase << ", FBB " << FBase << '\n';
-    });
+    MaxDepth =
+        std::min({MaxDepth, legMaxDepth(TBBTrace), legMaxDepth(FBBTrace)});
 
-    // If the select has to wait until Depth, each leg's value is delayed by
-    // the difference to that leg's baseline. A leg only pays that delay when
-    // it executes, so weight it by the leg's probability relative to the hot
-    // leg: the hot leg always counts in full, a rarely taken leg hardly at
-    // all, and an unbiased branch counts both legs in full.
-    auto weightedExtra = [&](unsigned Depth) {
-      auto Weigh = [&](unsigned Extra, BranchProbability Prob) -> unsigned {
-        return (uint64_t)Extra * Prob.getNumerator() / MaxProb.getNumerator();
-      };
-      unsigned TExtra = Depth > TBase ? Weigh(Depth - TBase, TProb) : 0;
-      unsigned FExtra = Depth > FBase ? Weigh(Depth - FBase, FProb) : 0;
-      return std::max(TExtra, FExtra);
-    };
-    auto account = [&](unsigned Depth, CriticalPathInfo &Info,
-                       const char *What) {
-      unsigned Extra = weightedExtra(Depth);
-      if (!Extra)
-        return;
-      LLVM_DEBUG(dbgs() << What << " adds " << Extra << " cycles.\n");
-      if (Extra > Info.Extra)
-        Info = {Extra, Depth};
+    // The condition is pulled into the critical path.
+    unsigned CondDepth = adjCycles(BranchDepth, PI.CondCycles);
+    if (CondDepth > MaxDepth) {
+      unsigned Extra = CondDepth - MaxDepth;
+      LLVM_DEBUG(dbgs() << "Condition adds " << Extra << " cycles.\n");
+      if (Extra > Cond.Extra)
+        Cond = {Extra, CondDepth};
       if (Extra > CritLimit) {
         LLVM_DEBUG(dbgs() << "Exceeds limit of " << CritLimit << '\n');
         ShouldConvert = false;
       }
-    };
+    }
 
-    // The condition is pulled into the critical path.
-    unsigned CondDepth = adjCycles(BranchDepth, PI.CondCycles);
-    account(CondDepth, Cond, "Condition");
     // The TBB value is pulled into the critical path.
-    account(TDepth, TBlock, "TBB data");
+    if (TDepth > MaxDepth) {
+      unsigned Extra = TDepth - MaxDepth;
+      LLVM_DEBUG(dbgs() << "TBB data adds " << Extra << " cycles.\n");
+      if (Extra > TBlock.Extra)
+        TBlock = {Extra, TDepth};
+      if (Extra > CritLimit) {
+        LLVM_DEBUG(dbgs() << "Exceeds limit of " << CritLimit << '\n');
+        ShouldConvert = false;
+      }
+    }
+
     // The FBB value is pulled into the critical path.
-    account(FDepth, FBlock, "FBB data");
+    if (FDepth > MaxDepth) {
+      unsigned Extra = FDepth - MaxDepth;
+      LLVM_DEBUG(dbgs() << "FBB data adds " << Extra << " cycles.\n");
+      if (Extra > FBlock.Extra)
+        FBlock = {Extra, FDepth};
+      if (Extra > CritLimit) {
+        LLVM_DEBUG(dbgs() << "Exceeds limit of " << CritLimit << '\n');
+        ShouldConvert = false;
+      }
+    }
   }
 
   // Organize by "short" and "long" legs, since the diagnostics get confusing
@@ -1525,8 +1468,9 @@ EarlyIfConverterPass::run(MachineFunction &MF,
   MachineDominatorTree &MDT = MFAM.getResult<MachineDominatorTreeAnalysis>(MF);
   MachineLoopInfo &LI = MFAM.getResult<MachineLoopAnalysis>(MF);
   MachineTraceMetrics &MTM = MFAM.getResult<MachineTraceMetricsAnalysis>(MF);
-  MachineBranchProbabilityInfo *MBPI =
-      &MFAM.getResult<MachineBranchProbabilityAnalysis>(MF);
+  MachineBranchProbabilityInfo *MBPI = nullptr;
+  if (EnableDataDependentBranchAnalysis)
+    MBPI = &MFAM.getResult<MachineBranchProbabilityAnalysis>(MF);
 
   EarlyIfConverter Impl(MDT, LI, MTM, MBPI);
   bool Changed = Impl.run(MF);
@@ -1549,8 +1493,9 @@ bool EarlyIfConverterLegacy::runOnMachineFunction(MachineFunction &MF) {
   MachineLoopInfo &LI = getAnalysis<MachineLoopInfoWrapperPass>().getLI();
   MachineTraceMetrics &MTM =
       getAnalysis<MachineTraceMetricsWrapperPass>().getMTM();
-  MachineBranchProbabilityInfo *MBPI =
-      &getAnalysis<MachineBranchProbabilityInfoWrapperPass>().getMBPI();
+  MachineBranchProbabilityInfo *MBPI = nullptr;
+  if (EnableDataDependentBranchAnalysis)
+    MBPI = &getAnalysis<MachineBranchProbabilityInfoWrapperPass>().getMBPI();
 
   return EarlyIfConverter(MDT, LI, MTM, MBPI).run(MF);
 }

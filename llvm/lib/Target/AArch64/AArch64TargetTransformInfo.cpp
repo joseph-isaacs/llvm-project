@@ -728,7 +728,7 @@ AArch64TTIImpl::getIntrinsicInstrCost(const IntrinsicCostAttributes &ICA,
   }
   case Intrinsic::scmp:
   case Intrinsic::ucmp: {
-    static const CostTblEntry BitreverseTbl[] = {
+    static const CostTblEntry CmpTbl[] = {
         {Intrinsic::scmp, MVT::i32, 3},   // cmp+cset+csinv
         {Intrinsic::scmp, MVT::i64, 3},   // cmp+cset+csinv
         {Intrinsic::scmp, MVT::v8i8, 3},  // cmgt+cmgt+sub
@@ -740,9 +740,20 @@ AArch64TTIImpl::getIntrinsicInstrCost(const IntrinsicCostAttributes &ICA,
         {Intrinsic::scmp, MVT::v1i64, 3}, // cmgt+cmgt+sub
         {Intrinsic::scmp, MVT::v2i64, 3}, // cmgt+cmgt+sub
     };
-    const auto LT = getTypeLegalizationCost(RetTy);
-    const auto *Entry =
-        CostTableLookup(BitreverseTbl, Intrinsic::scmp, LT.second);
+    // The work is done by the two comparisons of the operands, so the cost
+    // depends on the type of the arguments, not on the return type, which is
+    // just a (usually much narrower) container for -1/0/1.
+    if (ICA.getArgTypes().empty())
+      break;
+    Type *OpTy = ICA.getArgTypes()[0];
+    // For vectors a result narrower than the operands additionally needs to be
+    // narrowed lane by lane, which the table does not account for. Let the
+    // generic expansion cost those cases instead.
+    if (isa<VectorType>(OpTy) &&
+        OpTy->getScalarSizeInBits() != RetTy->getScalarSizeInBits())
+      break;
+    const auto LT = getTypeLegalizationCost(OpTy);
+    const auto *Entry = CostTableLookup(CmpTbl, Intrinsic::scmp, LT.second);
     if (Entry)
       return Entry->Cost * LT.first;
     break;

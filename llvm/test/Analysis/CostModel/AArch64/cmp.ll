@@ -144,3 +144,26 @@ define void @uscmp() {
   %sv2i64 = call <2 x i64> @llvm.scmp(<2 x i64> undef, <2 x i64> undef)
   ret void
 }
+
+define void @uscmp_wide_operands() {
+; CHECK-LABEL: 'uscmp_wide_operands'
+; CHECK-NEXT:  Cost Model: Found costs of 6 for: %u128 = call i8 @llvm.ucmp.i8.i128(i128 undef, i128 undef)
+; CHECK-NEXT:  Cost Model: Found costs of 6 for: %s128 = call i8 @llvm.scmp.i8.i128(i128 undef, i128 undef)
+; CHECK-NEXT:  Cost Model: Found costs of 12 for: %s256 = call i32 @llvm.scmp.i32.i256(i256 undef, i256 undef)
+; CHECK-NEXT:  Cost Model: Found costs of 3 for: %s64r8 = call i8 @llvm.scmp.i8.i64(i64 undef, i64 undef)
+; CHECK-NEXT:  Cost Model: Found costs of 11 for: %uv16i8_32 = call <16 x i8> @llvm.ucmp.v16i8.v16i32(<16 x i32> undef, <16 x i32> undef)
+; CHECK-NEXT:  Cost Model: Found costs of 19 for: %sv16i8_64 = call <16 x i8> @llvm.scmp.v16i8.v16i64(<16 x i64> undef, <16 x i64> undef)
+; CHECK-NEXT:  Cost Model: Found costs of 11 for: %sv8i8_64 = call <8 x i8> @llvm.scmp.v8i8.v8i64(<8 x i64> undef, <8 x i64> undef)
+; CHECK-NEXT:  Cost Model: Found costs of 5 for: %sv4i8_32 = call <4 x i8> @llvm.scmp.v4i8.v4i32(<4 x i32> undef, <4 x i32> undef)
+; CHECK-NEXT:  Cost Model: Found costs of RThru:0 CodeSize:1 Lat:1 SizeLat:1 for: ret void
+;
+  %u128 = call i8 @llvm.ucmp(i128 undef, i128 undef)
+  %s128 = call i8 @llvm.scmp(i128 undef, i128 undef)
+  %s256 = call i32 @llvm.scmp(i256 undef, i256 undef)
+  %s64r8 = call i8 @llvm.scmp(i64 undef, i64 undef)
+  %uv16i8_32 = call <16 x i8> @llvm.ucmp(<16 x i32> undef, <16 x i32> undef)
+  %sv16i8_64 = call <16 x i8> @llvm.scmp(<16 x i64> undef, <16 x i64> undef)
+  %sv8i8_64 = call <8 x i8> @llvm.scmp(<8 x i64> undef, <8 x i64> undef)
+  %sv4i8_32 = call <4 x i8> @llvm.scmp(<4 x i32> undef, <4 x i32> undef)
+  ret void
+}

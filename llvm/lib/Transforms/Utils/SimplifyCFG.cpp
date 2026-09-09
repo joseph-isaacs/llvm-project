@@ -8633,9 +8633,9 @@ bool SimplifyCFGOpt::simplifySwitch(SwitchInst *SI, IRBuilder<> &Builder) {
 
   // Lower a three-destination switch over ucmp/scmp once the arithmetic and
   // lookup table folds have had their chance at a constant map.
-  if ((Options.ConvertSwitchToArithmetic || Options.ConvertSwitchToLookupTable) &&
-      lowerSwitchOfCmpIntrinsic(SI, Builder, DTU, /*AllowThreeWay=*/true))
-    return requestResimplify();
+  if (Options.ConvertSwitchToArithmetic || Options.ConvertSwitchToLookupTable)
+    if (lowerSwitchOfCmpIntrinsic(SI, Builder, DTU, /*AllowThreeWay=*/true))
+      return requestResimplify();
 
   if (simplifySwitchOfPowersOfTwo(SI, Builder, DTU, DL, TTI))
     return requestResimplify();

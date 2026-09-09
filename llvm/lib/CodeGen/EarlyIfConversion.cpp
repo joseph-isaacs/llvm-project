@@ -65,6 +65,14 @@ static cl::opt<bool> EnableDataDependentBranchAnalysis(
     "enable-early-ifcvt-data-dependent", cl::Hidden, cl::init(false),
     cl::desc("Enable hard-to-predict branch analysis for if-conversion"));
 
+// Measure the critical-path extension against the lowest-latency arm of the
+// branch instead of the arm that happens to lie on the min-instruction-count
+// trace. See shouldConvertIf() for why the two differ.
+static cl::opt<bool> LimitCritPathBothArms(
+    "early-ifcvt-limit-both-arms", cl::Hidden, cl::init(true),
+    cl::desc("Bound the if-conversion critical-path extension against the "
+             "lowest-latency arm rather than the min-instruction-count trace"));
+
 // Limit the number steps we take when searching conditions that depend on
 // values recently loaded from memory.
 static cl::opt<unsigned>
@@ -1294,8 +1302,39 @@ bool EarlyIfConverter::shouldConvertIf() {
   bool ShouldConvert = true;
   for (SSAIfConv::PHIInfo &PI : IfConv.PHIs) {
     unsigned Slack = TailTrace.getInstrSlack(*PI.PHI);
-    unsigned MaxDepth = Slack + TailTrace.getInstrCycles(*PI.PHI).Depth;
-    LLVM_DEBUG(dbgs() << "Slack " << Slack << ":\t" << *PI.PHI);
+
+    // Depth of each incoming value as things stand today, i.e. how long the
+    // arm that produces it has to wait for it when that arm is the one taken.
+    unsigned TPHIDepth = TBBTrace.getPHIDepth(*PI.PHI);
+    unsigned FPHIDepth = FBBTrace.getPHIDepth(*PI.PHI);
+
+    // The trace through Tail follows only one of the two predecessors, so its
+    // depth for this PHI describes just that one arm, and the choice of arm is
+    // not a judgement about cost. For a diamond both arms sit at the same
+    // InstrDepth, so MinInstrCountEnsemble::pickTracePred() ties and keeps
+    // whichever predecessor it happened to visit first; inverting the branch
+    // swaps the answer. When it lands on the slow arm, both incoming values are
+    // measured against that arm and the cost paid by the fast arm - which after
+    // conversion has to wait for the slow one - is invisible.
+    //
+    // Both arms are computed unconditionally once converted, so the merged
+    // value is available no earlier than its slowest input. Budget the
+    // extension against the arm that was fastest beforehand, since that is the
+    // one with the most to lose.
+    //
+    // Only re-base when the trace actually came in over one of the two arms
+    // being merged. Tail can have predecessors besides TPred and FPred, and
+    // when the trace arrives over one of those the baseline describes a path
+    // this conversion does not touch, so leave it alone.
+    unsigned TraceDepth = TailTrace.getInstrCycles(*PI.PHI).Depth;
+    unsigned BaseDepth = TraceDepth;
+    if (LimitCritPathBothArms &&
+        (TraceDepth == TPHIDepth || TraceDepth == FPHIDepth))
+      BaseDepth = std::min(TPHIDepth, FPHIDepth);
+    unsigned MaxDepth = Slack + BaseDepth;
+    LLVM_DEBUG(dbgs() << "Slack " << Slack << ", TBB depth " << TPHIDepth
+                      << ", FBB depth " << FPHIDepth << ", base depth "
+                      << BaseDepth << ":\t" << *PI.PHI);
 
     // The condition is pulled into the critical path.
     unsigned CondDepth = adjCycles(BranchDepth, PI.CondCycles);
@@ -1311,7 +1350,7 @@ bool EarlyIfConverter::shouldConvertIf() {
     }
 
     // The TBB value is pulled into the critical path.
-    unsigned TDepth = adjCycles(TBBTrace.getPHIDepth(*PI.PHI), PI.TCycles);
+    unsigned TDepth = adjCycles(TPHIDepth, PI.TCycles);
     if (TDepth > MaxDepth) {
       unsigned Extra = TDepth - MaxDepth;
       LLVM_DEBUG(dbgs() << "TBB data adds " << Extra << " cycles.\n");
@@ -1324,7 +1363,7 @@ bool EarlyIfConverter::shouldConvertIf() {
     }
 
     // The FBB value is pulled into the critical path.
-    unsigned FDepth = adjCycles(FBBTrace.getPHIDepth(*PI.PHI), PI.FCycles);
+    unsigned FDepth = adjCycles(FPHIDepth, PI.FCycles);
     if (FDepth > MaxDepth) {
       unsigned Extra = FDepth - MaxDepth;
       LLVM_DEBUG(dbgs() << "FBB data adds " << Extra << " cycles.\n");

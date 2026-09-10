@@ -1281,13 +1281,13 @@ bool EarlyIfConverter::shouldConvertIf() {
   // favourable to if-conversion, and even there branching costs no more than
   // the average of the two legs plus half a misprediction penalty; a biased
   // branch is cheaper still. So a merged block costing more than that loses at
-  // *every* branch probability, which is what makes this worth checking even
+  // every branch probability, which is what makes this worth checking even
   // though branch probabilities are usually unavailable here.
-  // Everything feeding this comparison is already the estimate most
-  // favourable to if-conversion: the misprediction rate is taken at its
-  // upper bound, and ResLength assumes the merged block overlaps both legs
-  // perfectly. Breaking even under those assumptions is a loss in practice,
-  // so require a strict win. Compare doubled to keep the average exact.
+  //
+  // Require a strict win: both inputs are already the estimate most favourable
+  // to if-conversion, since the misprediction rate is taken at its upper bound
+  // and ResLength assumes the merged block overlaps both legs perfectly.
+  // Compare doubled to keep the average exact.
   unsigned TResLength = TBBTrace.getResourceLength();
   unsigned FResLength = FBBTrace.getResourceLength();
   unsigned BranchResLength = (TResLength + FResLength) / 2 + CritLimit;
@@ -1300,7 +1300,7 @@ bool EarlyIfConverter::shouldConvertIf() {
       MachineOptimizationRemarkMissed R(DEBUG_TYPE, "IfConversion",
                                         MBB.findDebugLoc(MBB.back()), &MBB);
       R << "did not if-convert branch: speculating both legs costs "
-        << Cycles{"ResLength", ResLength} << ", more than the "
+        << Cycles{"ResLength", ResLength} << ", at least as much as the "
         << Cycles{"BranchResLength", BranchResLength}
         << " an unpredictable branch would cost, so it cannot pay off at any "
            "branch probability.";

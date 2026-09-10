@@ -139,3 +139,92 @@ join:
   %p = phi i64 [ %x, %t ], [ %y, %f ]
   ret i64 %p
 }
+
+; Not division-specific: two legs of equal-latency multiply chains. The old
+; model saw no critical path extension because the legs match, so it merged
+; them and duplicated both chains. Keeping the branch lets tail merging share
+; a single chain instead, halving the multiplies.
+
+define i64 @symmetric_chains(i64 %a, i64 %b) {
+; A510-LABEL: symmetric_chains:
+; A510:       // %bb.0: // %entry
+; A510-NEXT:    cmp x0, x1
+; A510-NEXT:    b.le .LBB2_2
+; A510-NEXT:  // %bb.1: // %t
+; A510-NEXT:    mov w8, #16963 // =0x4243
+; A510-NEXT:    movk w8, #15, lsl #16
+; A510-NEXT:    b .LBB2_3
+; A510-NEXT:  .LBB2_2: // %f
+; A510-NEXT:    mov w8, #33923 // =0x8483
+; A510-NEXT:    movk w8, #30, lsl #16
+; A510-NEXT:  .LBB2_3: // %join
+; A510-NEXT:    add x9, x8, #2
+; A510-NEXT:    orr x10, x8, #0x4
+; A510-NEXT:    mul x9, x0, x9
+; A510-NEXT:    mul x9, x9, x10
+; A510-NEXT:    add x10, x8, #6
+; A510-NEXT:    mul x9, x9, x10
+; A510-NEXT:    orr x10, x8, #0x8
+; A510-NEXT:    mul x9, x9, x10
+; A510-NEXT:    add x10, x8, #10
+; A510-NEXT:    mul x9, x9, x10
+; A510-NEXT:    mul x0, x9, x8
+; A510-NEXT:    ret
+;
+; M1-LABEL: symmetric_chains:
+; M1:       // %bb.0: // %entry
+; M1-NEXT:    mov w8, #33923 // =0x8483
+; M1-NEXT:    movk w8, #30, lsl #16
+; M1-NEXT:    add x9, x8, #2
+; M1-NEXT:    mul x9, x0, x9
+; M1-NEXT:    orr x10, x8, #0x4
+; M1-NEXT:    mul x9, x9, x10
+; M1-NEXT:    add x10, x8, #6
+; M1-NEXT:    mul x9, x9, x10
+; M1-NEXT:    orr x10, x8, #0x8
+; M1-NEXT:    mul x9, x9, x10
+; M1-NEXT:    add x10, x8, #10
+; M1-NEXT:    mul x9, x9, x10
+; M1-NEXT:    mul x8, x9, x8
+; M1-NEXT:    mov w9, #16963 // =0x4243
+; M1-NEXT:    movk w9, #15, lsl #16
+; M1-NEXT:    add x10, x9, #2
+; M1-NEXT:    mul x10, x0, x10
+; M1-NEXT:    orr x11, x9, #0x4
+; M1-NEXT:    mul x10, x10, x11
+; M1-NEXT:    add x11, x9, #6
+; M1-NEXT:    mul x10, x10, x11
+; M1-NEXT:    orr x11, x9, #0x8
+; M1-NEXT:    mul x10, x10, x11
+; M1-NEXT:    add x11, x9, #10
+; M1-NEXT:    mul x10, x10, x11
+; M1-NEXT:    mul x9, x10, x9
+; M1-NEXT:    cmp x0, x1
+; M1-NEXT:    csel x0, x8, x9, le
+; M1-NEXT:    ret
+entry:
+  %c = icmp sgt i64 %a, %b
+  br i1 %c, label %t, label %f
+
+t:
+  %t0 = mul i64 %a, 1000003
+  %t1 = mul i64 %t0, 1000005
+  %t2 = mul i64 %t1, 1000007
+  %t3 = mul i64 %t2, 1000009
+  %t4 = mul i64 %t3, 1000011
+  %t5 = mul i64 %t4, 1000013
+  br label %join
+
+f:
+  %f0 = mul i64 %a, 2000003
+  %f1 = mul i64 %f0, 2000005
+  %f2 = mul i64 %f1, 2000007
+  %f3 = mul i64 %f2, 2000009
+  %f4 = mul i64 %f3, 2000011
+  %f5 = mul i64 %f4, 2000013
+  br label %join
+
+join:
+  %p = phi i64 [ %t5, %t ], [ %f5, %f ]
+  ret i64 %p
+}

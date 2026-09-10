@@ -1283,13 +1283,18 @@ bool EarlyIfConverter::shouldConvertIf() {
   // branch is cheaper still. So a merged block costing more than that loses at
   // *every* branch probability, which is what makes this worth checking even
   // though branch probabilities are usually unavailable here.
+  // Everything feeding this comparison is already the estimate most
+  // favourable to if-conversion: the misprediction rate is taken at its
+  // upper bound, and ResLength assumes the merged block overlaps both legs
+  // perfectly. Breaking even under those assumptions is a loss in practice,
+  // so require a strict win. Compare doubled to keep the average exact.
   unsigned TResLength = TBBTrace.getResourceLength();
   unsigned FResLength = FBBTrace.getResourceLength();
   unsigned BranchResLength = (TResLength + FResLength) / 2 + CritLimit;
   LLVM_DEBUG(dbgs() << "Speculated resource length " << ResLength
                     << ", branching costs at most " << BranchResLength
                     << " (legs " << TResLength << '/' << FResLength << ")\n");
-  if (ResLength > BranchResLength) {
+  if (2 * ResLength >= TResLength + FResLength + 2 * CritLimit) {
     LLVM_DEBUG(dbgs() << "Speculating both legs is too much extra work.\n");
     MORE.emit([&]() {
       MachineOptimizationRemarkMissed R(DEBUG_TYPE, "IfConversion",

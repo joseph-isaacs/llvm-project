@@ -1273,6 +1273,37 @@ bool EarlyIfConverter::shouldConvertIf() {
     return false;
   }
 
+  // The check above only bounds how much longer the merged block takes to
+  // issue; it says nothing about the work being issued. If-conversion executes
+  // both legs unconditionally, so the merged block always pays for both, while
+  // a branch pays for the leg it takes plus a misprediction penalty when it
+  // guesses wrong. A perfectly unpredictable branch is the case most
+  // favourable to if-conversion, and even there branching costs no more than
+  // the average of the two legs plus half a misprediction penalty; a biased
+  // branch is cheaper still. So a merged block costing more than that loses at
+  // *every* branch probability, which is what makes this worth checking even
+  // though branch probabilities are usually unavailable here.
+  unsigned TResLength = TBBTrace.getResourceLength();
+  unsigned FResLength = FBBTrace.getResourceLength();
+  unsigned BranchResLength = (TResLength + FResLength) / 2 + CritLimit;
+  LLVM_DEBUG(dbgs() << "Speculated resource length " << ResLength
+                    << ", branching costs at most " << BranchResLength
+                    << " (legs " << TResLength << '/' << FResLength << ")\n");
+  if (ResLength > BranchResLength) {
+    LLVM_DEBUG(dbgs() << "Speculating both legs is too much extra work.\n");
+    MORE.emit([&]() {
+      MachineOptimizationRemarkMissed R(DEBUG_TYPE, "IfConversion",
+                                        MBB.findDebugLoc(MBB.back()), &MBB);
+      R << "did not if-convert branch: speculating both legs costs "
+        << Cycles{"ResLength", ResLength} << ", more than the "
+        << Cycles{"BranchResLength", BranchResLength}
+        << " an unpredictable branch would cost, so it cannot pay off at any "
+           "branch probability.";
+      return R;
+    });
+    return false;
+  }
+
   // Assume that the depth of the first head terminator will also be the depth
   // of the select instruction inserted, as determined by the flag dependency.
   // TBB / FBB data dependencies may delay the select even more.
